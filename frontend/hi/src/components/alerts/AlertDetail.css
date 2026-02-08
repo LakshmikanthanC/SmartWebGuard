@@ -1,0 +1,120 @@
+.ad-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.ad-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 520px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.ad-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.ad-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.ad-close {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s;
+}
+.ad-close:hover {
+  color: var(--red);
+}
+.ad-body {
+  padding: 22px;
+}
+.ad-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.ad-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ad-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+.ad-val {
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+.ad-ip {
+  font-family: var(--mono);
+  color: var(--cyan);
+}
+.ad-probs {
+  margin-top: 10px;
+}
+.ad-probs h4 {
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-sec);
+}
+.ad-prob-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.ad-prob-label {
+  font-size: 0.75rem;
+  font-family: var(--mono);
+  font-weight: 600;
+  min-width: 55px;
+  color: var(--text-sec);
+}
+.ad-prob-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.ad-prob-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.ad-prob-val {
+  font-size: 0.72rem;
+  font-family: var(--mono);
+  color: var(--text-dim);
+  min-width: 42px;
+  text-align: right;
+}
+.ad-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 22px;
+  border-top: 1px solid var(--border);
+}

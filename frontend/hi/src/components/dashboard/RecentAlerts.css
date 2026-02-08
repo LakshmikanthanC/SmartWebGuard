@@ -1,0 +1,22 @@
+.recent-alerts-card { max-height: 520px; display: flex; flex-direction: column; }
+.ra-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+
+.ra-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card-alt);
+  border: 1px solid transparent;
+  transition: all .2s;
+}
+.ra-item:hover { border-color: var(--border-light); background: var(--bg-hover); }
+.ra-left { display: flex; align-items: center; gap: 12px; }
+.ra-icon { font-size: 1.3rem; }
+.ra-type { font-size: .85rem; font-weight: 600; color: var(--text); }
+.ra-meta { display: flex; gap: 10px; margin-top: 3px; }
+.ra-ip { font-size: .72rem; font-family: var(--mono); color: var(--cyan); }
+.ra-time { font-size: .7rem; color: var(--text-dim); }
+.ra-right { display: flex; align-items: center; gap: 10px; }
+.ra-conf { font-size: .75rem; font-family: var(--mono); color: var(--text-sec); }

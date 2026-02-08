@@ -1,0 +1,23 @@
+.alerts-card { overflow: hidden; }
+.table-wrap { overflow-x: auto; }
+
+.at-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.at-table thead { background: var(--bg-surface); }
+.at-table th {
+  padding: 12px 14px; text-align: left; color: var(--text-dim);
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .6px;
+  font-weight: 700; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.at-table td { padding: 10px 14px; border-bottom: 1px solid rgba(30,37,90,0.3); white-space: nowrap; cursor: pointer; }
+.at-table tbody tr:hover { background: var(--bg-hover); }
+
+.cell-mono { font-family: var(--mono); font-size: .78rem; }
+.cell-dim { color: var(--text-dim); }
+.cell-cyan { color: var(--cyan); }
+.at-type { font-weight: 600; }
+
+.conf-bar-wrap { width: 70px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 3px; }
+.conf-bar { height: 100%; border-radius: 2px; transition: width .3s; }
+
+.at-pagination { display: flex; justify-content: center; align-items: center; gap: 14px; padding: 18px 0 4px; }
+.pg-info { font-size: .78rem; color: var(--text-dim); font-family: var(--mono); }

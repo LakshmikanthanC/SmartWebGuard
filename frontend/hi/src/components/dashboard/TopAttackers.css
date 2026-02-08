@@ -1,0 +1,9 @@
+.ta-list { display: flex; flex-direction: column; gap: 8px; }
+.ta-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.ta-rank { font-size: .75rem; font-family: var(--mono); font-weight: 700; color: var(--text-dim); min-width: 28px; }
+.ta-info { min-width: 130px; }
+.ta-ip { font-size: .82rem; font-family: var(--mono); color: var(--cyan); font-weight: 500; }
+.ta-types { font-size: .65rem; color: var(--text-dim); margin-top: 1px; }
+.ta-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.ta-bar { height: 100%; background: linear-gradient(90deg, var(--red), var(--orange)); border-radius: 3px; transition: width .5s ease; }
+.ta-count { font-size: .82rem; font-family: var(--mono); font-weight: 700; color: var(--text); min-width: 40px; text-align: right; }

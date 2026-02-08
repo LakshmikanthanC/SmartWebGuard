@@ -1,0 +1,36 @@
+.live-feed-card { display: flex; flex-direction: column; max-height: 520px; }
+.live-badge { font-size: .7rem; color: var(--red); margin-left: 8px; font-family: var(--mono); font-weight: 600; }
+.feed-scroll { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+
+.feed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-xs);
+  font-size: .78rem;
+  font-family: var(--mono);
+  transition: background .15s;
+}
+.feed-row:hover { background: var(--bg-hover); }
+.feed-mal { border-left: 3px solid var(--red); }
+.feed-ok { border-left: 3px solid var(--green); }
+
+.fr-icon { font-size: .95rem; flex-shrink: 0; }
+.fr-time { color: var(--text-dim); font-size: .7rem; min-width: 68px; flex-shrink: 0; }
+.fr-ip { color: var(--cyan); font-size: .72rem; min-width: 100px; }
+.fr-arrow { color: var(--text-dim); flex-shrink: 0; }
+.fr-proto { color: var(--text-dim); font-size: .68rem; min-width: 30px; text-align: center; }
+
+.fr-tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: .65rem;
+  font-weight: 700;
+  min-width: 50px;
+  text-align: center;
+}
+.tag-mal { background: rgba(255,71,87,0.12); color: var(--red); }
+.tag-ok { background: rgba(0,230,122,0.12); color: var(--green); }
+
+.fr-conf { color: var(--text-dim); font-size: .68rem; min-width: 32px; text-align: right; }
