@@ -55,5 +55,24 @@ def batch_scan():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/predict", methods=["POST"])
+def predict():
+    """Predict network intrusion detection."""
+    try:
+        data = request.get_json()
+        features = data.get("features", {})
+        if not features:
+            return jsonify({"error": "No features provided"}), 400
+        result = predictor.predict(features)
+        return jsonify(result)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/health", methods=["GET"])
+def health():
+    """Health check endpoint."""
+    return jsonify({"status": "healthy", "service": "ai-engine"})
+
 if __name__ == '__main__':
     app.run(debug=True)
