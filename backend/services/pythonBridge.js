@@ -4,7 +4,7 @@ const client = axios.create({ baseURL: AI_URL, timeout: 30000 });
 
 module.exports = {
   async predict(features) {
-    const { data } = await client.post("/api/predict", features);
+    const { data } = await client.post("/api/predict", { features });
     return data;
   },
   async getModelInfo() {

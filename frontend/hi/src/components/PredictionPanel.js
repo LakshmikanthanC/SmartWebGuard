@@ -196,14 +196,20 @@ export default function PredictionPanel() {
     try {
       const parsed = JSON.parse(jsonInput);
       const { data } = await postPredict(parsed);
-      setResult(data);
+      if (data.error) {
+        const err = data.error;
+        const errMsg = typeof err === 'object' ? err.message || JSON.stringify(err) : err;
+        setError(errMsg);
+      } else {
+        setResult(data);
+      }
     } catch (e) {
       if (e instanceof SyntaxError) {
         setError("Invalid JSON format. Please check your input.");
       } else {
-        setError(
-          e.response?.data?.error || e.message || "Prediction failed"
-        );
+        const err = e.response?.data?.error;
+        const errMsg = typeof err === 'object' ? err.message || JSON.stringify(err) : err || e.message || "Prediction failed";
+        setError(errMsg);
       }
     }
     setLoading(false);
@@ -213,7 +219,13 @@ export default function PredictionPanel() {
     setModelLoading(true);
     try {
       const { data } = await getModelInfo();
-      setModelInfo(data);
+      if (data.error) {
+        const err = data.error;
+        const errMsg = typeof err === 'object' ? err.message || JSON.stringify(err) : err;
+        setModelInfo({ error: errMsg });
+      } else {
+        setModelInfo(data);
+      }
     } catch (e) {
       setModelInfo({ error: "Could not load model info" });
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import "./App.css";
 import { SocketProvider, useSocket } from "./context/SocketContext";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { getDashboard, getTimeline, getTopSources, postPredict, getModelInfo } from "./services/api";
 import Sidebar from "./components/layout/Sidebar";
 import TopBar from "./components/layout/TopBar";
@@ -18,6 +19,7 @@ import SeverityHeatmap from "./components/analytics/SeverityHeatmap";
 import ProtocolBreakdown from "./components/analytics/ProtocolBreakdown";
 import ModelMetrics from "./components/analytics/ModelMetrics";
 import UrlScanner from "./components/UrlScanner";
+import Settings from "./components/Settings";
 
 function MainApp() {
   const [page, setPage] = useState("dashboard");
@@ -110,6 +112,9 @@ function MainApp() {
 
           {/* PREDICTION */}
           {page === "prediction" && <PredictionPanel />}
+
+          {/* SETTINGS */}
+          {page === "settings" && <Settings />}
         </div>
       </div>
     </div>
@@ -118,8 +123,10 @@ function MainApp() {
 
 export default function App() {
   return (
-    <SocketProvider>
-      <MainApp />
-    </SocketProvider>
+    <ThemeProvider>
+      <SocketProvider>
+        <MainApp />
+      </SocketProvider>
+    </ThemeProvider>
   );
 }

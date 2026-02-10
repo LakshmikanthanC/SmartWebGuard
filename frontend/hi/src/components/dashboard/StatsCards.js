@@ -4,12 +4,12 @@ import { useSocket } from "../../context/SocketContext";
 import "./StatsCards.css";
 
 export default function StatsCards({ stats }) {
-  const { liveStats } = useSocket();
+  const { liveStats, connectionError } = useSocket();
 
   const cards = [
     { icon: "🚨", label: "Total Alerts", value: fmtNum(stats?.overview?.totalAlerts), color: "var(--red)", sub: "All time" },
     { icon: "⚡", label: "Last 24 Hours", value: fmtNum(stats?.overview?.alerts24h), color: "var(--orange)", sub: "Recent activity" },
-    { icon: "📡", label: "Live Packets", value: fmtNum(liveStats.total), color: "var(--cyan)", sub: `${liveStats.normal} normal / ${liveStats.malicious} threats` },
+    { icon: "📡", label: "Live Packets", value: fmtNum(liveStats.total), color: connectionError ? "var(--red)" : "var(--cyan)", sub: connectionError ? connectionError : `${liveStats.normal} normal / ${liveStats.malicious} threats` },
     {
       icon: "🎯", label: "Threat Level",
       value: (stats?.overview?.threatLevel || "low").toUpperCase(),

@@ -74,5 +74,15 @@ def health():
     """Health check endpoint."""
     return jsonify({"status": "healthy", "service": "ai-engine"})
 
+@app.route("/api/model/info", methods=["GET"])
+def model_info():
+    """Get model information."""
+    try:
+        info = predictor.get_model_info()
+        return jsonify(info)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)

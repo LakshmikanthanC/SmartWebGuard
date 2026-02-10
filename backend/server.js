@@ -28,8 +28,6 @@ app.use("/api/url", require("./routes/urlscan"));
 app.use("/api/predict", require("./routes/predict"));
 app.use("/api/alerts", require("./routes/alerts"));
 app.use("/api/analytics", require("./routes/analytics"));
-// Add this with your other route imports at the top area:
-app.use("/api/url", require("./routes/urlscan"));
 
 app.get("/api/health", async (req, res) => {
   const ai = await bridge.healthCheck();
@@ -89,6 +87,6 @@ const PORT = process.env.PORT || 4000;
   await connectDB();
   server.listen(PORT, () => {
     console.log(`\n  🛡️  AI-NIDS Backend on port ${PORT}\n`);
-    if (process.env.NODE_ENV === "development") startSim();
+    startSim(); // Always start simulation for demo
   });
 })();

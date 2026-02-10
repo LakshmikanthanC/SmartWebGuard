@@ -9,6 +9,7 @@ export function SocketProvider({ children }) {
   const [alerts, setAlerts] = useState([]);
   const [feed, setFeed] = useState([]);
   const [liveStats, setLiveStats] = useState({ total: 0, normal: 0, malicious: 0, perType: {} });
+  const [connectionError, setConnectionError] = useState(null);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -18,8 +19,22 @@ export function SocketProvider({ children }) {
     });
     ref.current = sock;
 
-    sock.on("connect", () => { setConnected(true); sock.emit("start_monitoring"); });
+    sock.on("connect", () => { setConnected(true); setConnectionError(null); sock.emit("start_monitoring"); });
     sock.on("disconnect", () => setConnected(false));
+
+    sock.on("connect_error", (error) => {
+      console.error("Socket connection error:", error);
+      setConnectionError(error.message || "Network Error");
+    });
+
+    sock.on("reconnect_error", (error) => {
+      console.error("Socket reconnection error:", error);
+      setConnectionError(error.message || "Reconnection Failed");
+    });
+
+    sock.on("reconnect", () => {
+      setConnectionError(null);
+    });
 
     sock.on("new_alert", (a) => setAlerts((p) => [a, ...p].slice(0, 500)));
 
@@ -44,7 +59,7 @@ export function SocketProvider({ children }) {
   const resetStats = useCallback(() => setLiveStats({ total: 0, normal: 0, malicious: 0, perType: {} }), []);
 
   return (
-    <Ctx.Provider value={{ socket: ref.current, connected, alerts, feed, liveStats, clearAlerts, clearFeed, resetStats }}>
+    <Ctx.Provider value={{ socket: ref.current, connected, alerts, feed, liveStats, connectionError, clearAlerts, clearFeed, resetStats }}>
       {children}
     </Ctx.Provider>
   );

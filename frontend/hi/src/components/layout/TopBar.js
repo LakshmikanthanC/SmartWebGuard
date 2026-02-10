@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSocket } from "../../context/SocketContext";
+import { useTheme } from "../../context/ThemeContext";
 import { getHealth } from "../../services/api";
 import "./TopBar.css";
 
@@ -11,6 +12,7 @@ const titles = {
 
 export default function TopBar({ currentPage }) {
   const { connected } = useSocket();
+  const { isDarkMode, toggleTheme } = useTheme();
   const [aiOnline, setAiOnline] = useState(false);
   const [time, setTime] = useState(new Date());
 
@@ -43,6 +45,13 @@ export default function TopBar({ currentPage }) {
         </div>
         <div className="topbar-divider" />
         <div className="topbar-indicators">
+          <button
+            onClick={toggleTheme}
+            className="theme-toggle"
+            title={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
+          >
+            {isDarkMode ? '☀️' : '🌙'}
+          </button>
           <div className="indicator" title="WebSocket Connection">
             <span className={`dot ${connected ? "dot-green" : "dot-red"}`} />
             <span>{connected ? "Connected" : "Offline"}</span>
