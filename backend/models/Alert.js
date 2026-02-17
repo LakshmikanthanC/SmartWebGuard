@@ -15,6 +15,8 @@ const alertSchema = new mongoose.Schema(
     rawFeatures: { type: mongoose.Schema.Types.Mixed },
     acknowledged: { type: Boolean, default: false },
     notes: { type: String, default: "" },
+    explanation: { type: String, default: "" },
+    recommendations: [String],
   },
   { timestamps: true }
 );

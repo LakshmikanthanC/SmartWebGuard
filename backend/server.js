@@ -10,6 +10,7 @@ const socketService = require("./services/socketService");
 const { genTraffic, randIP, randPort } = require("./utils/helpers");
 const bridge = require("./services/pythonBridge");
 const Alert = require("./models/Alert");
+const { getRecommendations } = require("./services/recommendation");
 
 const app = express();
 const server = http.createServer(app);
@@ -65,6 +66,7 @@ const startSim = () => {
           protocol: feat.protocol_type, attackType: pred.prediction,
           severity: pred.severity, confidence: pred.confidence,
           probabilities: pred.probabilities, rawFeatures: feat,
+          recommendations: getRecommendations(pred.prediction),
         });
         socketService.emitAlert({
           _id: alert._id, timestamp: alert.timestamp, sourceIP: alert.sourceIP,

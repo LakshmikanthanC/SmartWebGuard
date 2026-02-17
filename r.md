@@ -25,29 +25,6 @@ export default function UrlScanner() {
   const [downloading, setDownloading] = useState(null);
 
   // ============================================================
-  // MOCK DATA (Analytics)
-  // ============================================================
-  const analyticsData = {
-    countries: [
-      { code: "US", flag: "🇺🇸", name: "United States", count: 1250, percent: 45 },
-      { code: "IN", flag: "🇮🇳", name: "India", count: 620, percent: 22 },
-      { code: "GB", flag: "🇬🇧", name: "United Kingdom", count: 340, percent: 12 },
-      { code: "DE", flag: "🇩🇪", name: "Germany", count: 210, percent: 8 },
-      { code: "BR", flag: "🇧🇷", name: "Brazil", count: 150, percent: 5 },
-      { code: "JP", flag: "🇯🇵", name: "Japan", count: 110, percent: 4 },
-      { code: "FR", flag: "🇫🇷", name: "France", count: 90, percent: 3 },
-    ],
-    topLinks: [
-      { url: "google.com", hits: 1540 },
-      { url: "github.com", hits: 1200 },
-      { url: "suspicious-bank-login.tk", hits: 450, risk: "high" },
-      { url: "free-crypto-giveaway.xyz", hits: 320, risk: "critical" },
-      { url: "myshopify.com", hits: 210 },
-      { url: "paypal-secure-check.com", hits: 180, risk: "medium" },
-    ],
-  };
-
-  // ============================================================
   // DATA LOADERS
   // ============================================================
   const loadHistory = useCallback(async () => {
@@ -138,9 +115,18 @@ export default function UrlScanner() {
   const quickUrls = [
     { label: "✅ Google", url: "https://www.google.com" },
     { label: "✅ GitHub", url: "https://github.com" },
-    { label: "⚠️ Suspicious", url: "http://192.168.1.1/admin/login.php?user=admin" },
-    { label: "🚨 Phishing", url: "http://secure-paypal-login.tk/verify?account=locked" },
-    { label: "🚨 Malware", url: "http://free-crack-download.xyz/photoshop-crack.exe" },
+    {
+      label: "⚠️ Suspicious",
+      url: "http://192.168.1.1/admin/login.php?user=admin",
+    },
+    {
+      label: "🚨 Phishing",
+      url: "http://secure-paypal-login.tk/verify?account=locked",
+    },
+    {
+      label: "🚨 Malware",
+      url: "http://free-crack-download.xyz/photoshop-crack.exe",
+    },
   ];
 
   // ============================================================
@@ -169,21 +155,41 @@ export default function UrlScanner() {
   };
 
   const getRiskEmoji = (level) =>
-    ({ safe: "✅", low: "🟢", medium: "🟡", high: "🟠", critical: "🔴" }[level] || "❓");
-
-  const getBarColor = (percent) => {
-    if (percent > 40) return "var(--blue)";
-    if (percent > 20) return "var(--cyan)";
-    return "var(--purple)";
-  };
+    ({
+      safe: "✅",
+      low: "🟢",
+      medium: "🟡",
+      high: "🟠",
+      critical: "🔴",
+    }[level] || "❓");
 
   const getSevStyle = (sev) => {
     const map = {
-      critical: { bg: "rgba(168,85,247,0.08)", border: "var(--purple)", icon: "🔴" },
-      high: { bg: "rgba(255,71,87,0.08)", border: "var(--red)", icon: "🟠" },
-      medium: { bg: "rgba(255,152,0,0.08)", border: "var(--orange)", icon: "🟡" },
-      low: { bg: "rgba(139,195,74,0.08)", border: "#8bc34a", icon: "🟢" },
-      info: { bg: "rgba(77,141,255,0.08)", border: "var(--blue)", icon: "🔵" },
+      critical: {
+        bg: "rgba(168,85,247,0.08)",
+        border: "var(--purple)",
+        icon: "🔴",
+      },
+      high: {
+        bg: "rgba(255,71,87,0.08)",
+        border: "var(--red)",
+        icon: "🟠",
+      },
+      medium: {
+        bg: "rgba(255,152,0,0.08)",
+        border: "var(--orange)",
+        icon: "🟡",
+      },
+      low: {
+        bg: "rgba(139,195,74,0.08)",
+        border: "#8bc34a",
+        icon: "🟢",
+      },
+      info: {
+        bg: "rgba(77,141,255,0.08)",
+        border: "var(--blue)",
+        icon: "🔵",
+      },
     };
     return map[sev] || map.info;
   };
@@ -223,7 +229,10 @@ export default function UrlScanner() {
           {stats.riskDistribution &&
             Object.entries(stats.riskDistribution).map(([level, count]) => (
               <div key={level} className="us-stat">
-                <span className="us-stat-val" style={{ color: sevColor(level) }}>
+                <span
+                  className="us-stat-val"
+                  style={{ color: sevColor(level) }}
+                >
                   {count}
                 </span>
                 <span className="us-stat-label">{level}</span>
@@ -241,19 +250,17 @@ export default function UrlScanner() {
           🔍 Scan URL
         </button>
         <button
-          className={`us-tab ${activeTab === "history" ? "us-tab-active" : ""}`}
+          className={`us-tab ${
+            activeTab === "history" ? "us-tab-active" : ""
+          }`}
           onClick={() => setActiveTab("history")}
         >
           📜 Scan History ({stats?.total || 0})
         </button>
         <button
-          className={`us-tab ${activeTab === "analytics" ? "us-tab-active" : ""}`}
-          onClick={() => setActiveTab("analytics")}
-        >
-          📊 Analytics
-        </button>
-        <button
-          className={`us-tab ${activeTab === "checklist" ? "us-tab-active" : ""}`}
+          className={`us-tab ${
+            activeTab === "checklist" ? "us-tab-active" : ""
+          }`}
           onClick={() => setActiveTab("checklist")}
         >
           🛡️ Safety Checklist
@@ -351,7 +358,9 @@ export default function UrlScanner() {
                     <div className="us-verdict-url">{result.url}</div>
                     <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
                       {result.cached && (
-                        <span className="us-cached-badge">📦 Cached Result</span>
+                        <span className="us-cached-badge">
+                          📦 Cached Result
+                        </span>
                       )}
                       {result.scanType && (
                         <span
@@ -370,7 +379,12 @@ export default function UrlScanner() {
                   </div>
                   <div className="us-risk-circle">
                     <svg viewBox="0 0 120 120" className="us-risk-svg">
-                      <circle cx="60" cy="60" r="50" className="us-risk-bg" />
+                      <circle
+                        cx="60"
+                        cy="60"
+                        r="50"
+                        className="us-risk-bg"
+                      />
                       <circle
                         cx="60"
                         cy="60"
@@ -422,13 +436,17 @@ export default function UrlScanner() {
 
                 {/* Download Buttons */}
                 <div className="us-download-bar">
-                  <span className="us-download-label">📥 Download Report:</span>
+                  <span className="us-download-label">
+                    📥 Download Report:
+                  </span>
                   <button
                     className="btn btn-primary btn-sm"
                     onClick={() => handleDownload("pdf")}
                     disabled={downloading === "pdf"}
                   >
-                    {downloading === "pdf" ? "⏳ Generating..." : "📄 PDF Report"}
+                    {downloading === "pdf"
+                      ? "⏳ Generating..."
+                      : "📄 PDF Report"}
                   </button>
                   <button
                     className="btn btn-ghost btn-sm us-excel-btn"
@@ -447,16 +465,30 @@ export default function UrlScanner() {
                 <div className="us-findings-summary">
                   <span className="us-fs-label">Findings:</span>
                   {[
-                    { key: "critical", label: "Critical", color: "var(--purple)" },
+                    {
+                      key: "critical",
+                      label: "Critical",
+                      color: "var(--purple)",
+                    },
                     { key: "high", label: "High", color: "var(--red)" },
-                    { key: "medium", label: "Medium", color: "var(--orange)" },
+                    {
+                      key: "medium",
+                      label: "Medium",
+                      color: "var(--orange)",
+                    },
                     { key: "low", label: "Low", color: "#8bc34a" },
                     { key: "info", label: "Info", color: "var(--blue)" },
                   ].map(({ key, label, color }) => (
                     <div key={key} className="us-fs-item">
-                      <span className="us-fs-dot" style={{ background: color }} />
+                      <span
+                        className="us-fs-dot"
+                        style={{ background: color }}
+                      />
                       <span className="us-fs-name">{label}:</span>
-                      <span className="us-fs-count" style={{ color: color }}>
+                      <span
+                        className="us-fs-count"
+                        style={{ color: color }}
+                      >
                         {result.finding_summary?.[key] || 0}
                       </span>
                     </div>
@@ -486,7 +518,10 @@ export default function UrlScanner() {
                     </div>
                     <div className="us-list">
                       {result.threats.map((t, i) => (
-                        <div key={i} className="us-list-item us-item-threat">
+                        <div
+                          key={i}
+                          className="us-list-item us-item-threat"
+                        >
                           <span className="us-item-icon">🔴</span>
                           <span>{t}</span>
                         </div>
@@ -511,7 +546,10 @@ export default function UrlScanner() {
                     </div>
                     <div className="us-list">
                       {result.warnings.map((w, i) => (
-                        <div key={i} className="us-list-item us-item-warning">
+                        <div
+                          key={i}
+                          className="us-list-item us-item-warning"
+                        >
                           <span className="us-item-icon">🟡</span>
                           <span>{w}</span>
                         </div>
@@ -527,7 +565,10 @@ export default function UrlScanner() {
                     </div>
                     <div className="us-list">
                       {result.info.map((inf, i) => (
-                        <div key={i} className="us-list-item us-item-info">
+                        <div
+                          key={i}
+                          className="us-list-item us-item-info"
+                        >
                           <span className="us-item-icon">🔵</span>
                           <span>{inf}</span>
                         </div>
@@ -560,7 +601,9 @@ export default function UrlScanner() {
                   {result.malwareIndicators?.length > 0 && (
                     <div className="card us-detail-card">
                       <div className="card-hdr">
-                        <span className="card-title">🦠 Malware Indicators</span>
+                        <span className="card-title">
+                          🦠 Malware Indicators
+                        </span>
                         <span
                           className="badge"
                           style={{
@@ -573,7 +616,10 @@ export default function UrlScanner() {
                       </div>
                       <div className="us-list">
                         {result.malwareIndicators.map((m, i) => (
-                          <div key={i} className="us-list-item us-item-threat">
+                          <div
+                            key={i}
+                            className="us-list-item us-item-threat"
+                          >
                             <span className="us-item-icon">🦠</span>
                             <span>{m}</span>
                           </div>
@@ -585,7 +631,9 @@ export default function UrlScanner() {
                   {result.phishingIndicators?.length > 0 && (
                     <div className="card us-detail-card">
                       <div className="card-hdr">
-                        <span className="card-title">🎣 Phishing Indicators</span>
+                        <span className="card-title">
+                          🎣 Phishing Indicators
+                        </span>
                         <span
                           className="badge"
                           style={{
@@ -598,7 +646,10 @@ export default function UrlScanner() {
                       </div>
                       <div className="us-list">
                         {result.phishingIndicators.map((p, i) => (
-                          <div key={i} className="us-list-item us-item-warning">
+                          <div
+                            key={i}
+                            className="us-list-item us-item-warning"
+                          >
                             <span className="us-item-icon">🎣</span>
                             <span>{p}</span>
                           </div>
@@ -624,8 +675,12 @@ export default function UrlScanner() {
                               key={sev}
                               className="badge"
                               style={{
-                                background: sevBg(sev === "info" ? "none" : sev),
-                                color: sevColor(sev === "info" ? "none" : sev),
+                                background: sevBg(
+                                  sev === "info" ? "none" : sev
+                                ),
+                                color: sevColor(
+                                  sev === "info" ? "none" : sev
+                                ),
                               }}
                             >
                               {result.finding_summary[sev]} {sev}
@@ -651,8 +706,12 @@ export default function UrlScanner() {
                           {/* Finding Header */}
                           <div className="us-finding-header">
                             <div className="us-finding-title-row">
-                              <span className="us-finding-icon">{sc.icon}</span>
-                              <span className="us-finding-name">{f.name}</span>
+                              <span className="us-finding-icon">
+                                {sc.icon}
+                              </span>
+                              <span className="us-finding-name">
+                                {f.name}
+                              </span>
                             </div>
                             <div className="us-finding-badges">
                               <span
@@ -665,7 +724,9 @@ export default function UrlScanner() {
                               >
                                 {f.severity}
                               </span>
-                              <span className="us-finding-cat">{f.category}</span>
+                              <span className="us-finding-cat">
+                                {f.category}
+                              </span>
                               {f.risk_points !== 0 && (
                                 <span
                                   className="us-finding-pts"
@@ -684,7 +745,9 @@ export default function UrlScanner() {
                           </div>
 
                           {/* Description */}
-                          <div className="us-finding-desc">{f.description}</div>
+                          <div className="us-finding-desc">
+                            {f.description}
+                          </div>
 
                           {/* Evidence */}
                           {f.evidence && (
@@ -716,14 +779,20 @@ export default function UrlScanner() {
                     </span>
                   </div>
                   <div className="us-list">
-                    {result.analysis.scripts.malicious_patterns.map((p, i) => (
-                      <div key={i} className="us-list-item us-item-threat">
-                        <span className="us-item-icon">💀</span>
-                        <span>
-                          <strong>{p.pattern}</strong> — found {p.count} time(s)
-                        </span>
-                      </div>
-                    ))}
+                    {result.analysis.scripts.malicious_patterns.map(
+                      (p, i) => (
+                        <div
+                          key={i}
+                          className="us-list-item us-item-threat"
+                        >
+                          <span className="us-item-icon">💀</span>
+                          <span>
+                            <strong>{p.pattern}</strong> — found {p.count}{" "}
+                            time(s)
+                          </span>
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
               )}
@@ -739,9 +808,13 @@ export default function UrlScanner() {
                   </div>
                   <div className="us-list">
                     {result.analysis.redirects.chain?.map((r, i) => (
-                      <div key={i} className="us-list-item us-item-info">
+                      <div
+                        key={i}
+                        className="us-list-item us-item-info"
+                      >
                         <span className="us-item-icon">
-                          {i === result.analysis.redirects.chain.length - 1
+                          {i ===
+                          result.analysis.redirects.chain.length - 1
                             ? "🏁"
                             : "➡️"}
                         </span>
@@ -763,9 +836,11 @@ export default function UrlScanner() {
                   </div>
                   <div className="us-headers-grid">
                     <div>
-                      <h4 className="us-hdr-title us-hdr-present">✅ Present</h4>
-                      {result.analysis.headers.security_headers_present.length ===
-                      0 ? (
+                      <h4 className="us-hdr-title us-hdr-present">
+                        ✅ Present
+                      </h4>
+                      {result.analysis.headers.security_headers_present
+                        .length === 0 ? (
                         <span className="us-hdr-none">None</span>
                       ) : (
                         result.analysis.headers.security_headers_present.map(
@@ -778,9 +853,12 @@ export default function UrlScanner() {
                       )}
                     </div>
                     <div>
-                      <h4 className="us-hdr-title us-hdr-missing">❌ Missing</h4>
+                      <h4 className="us-hdr-title us-hdr-missing">
+                        ❌ Missing
+                      </h4>
                       {(
-                        result.analysis.headers.security_headers_missing || []
+                        result.analysis.headers.security_headers_missing ||
+                        []
                       ).map((h) => (
                         <div key={h} className="us-hdr-item us-hdr-bad">
                           {h}
@@ -826,7 +904,9 @@ export default function UrlScanner() {
                                   : "var(--green)",
                               }}
                             >
-                              {result.analysis.domain.is_ip ? "Yes ⚠️" : "No ✓"}
+                              {result.analysis.domain.is_ip
+                                ? "Yes ⚠️"
+                                : "No ✓"}
                             </span>
                           </div>
                           <div className="us-tech-row">
@@ -1001,12 +1081,15 @@ export default function UrlScanner() {
                                   </span>
                                 </div>
                               )}
-                              {result.analysis.content.external_domain_count !==
-                                undefined && (
+                              {result.analysis.content
+                                .external_domain_count !== undefined && (
                                 <div className="us-tech-row">
                                   <span>External Domains</span>
                                   <span className="us-tech-val">
-                                    {result.analysis.content.external_domain_count}
+                                    {
+                                      result.analysis.content
+                                        .external_domain_count
+                                    }
                                   </span>
                                 </div>
                               )}
@@ -1018,8 +1101,8 @@ export default function UrlScanner() {
                                     className="us-tech-val"
                                     style={{
                                       color:
-                                        result.analysis.content.phishing_score >=
-                                        3
+                                        result.analysis.content
+                                          .phishing_score >= 3
                                           ? "var(--red)"
                                           : "var(--green)",
                                     }}
@@ -1084,7 +1167,8 @@ export default function UrlScanner() {
                                 className="us-tech-val"
                                 style={{
                                   color:
-                                    result.analysis.scripts.obfuscation_score >= 3
+                                    result.analysis.scripts
+                                      .obfuscation_score >= 3
                                       ? "var(--red)"
                                       : result.analysis.scripts
                                           .obfuscation_score >= 1
@@ -1171,7 +1255,8 @@ export default function UrlScanner() {
                               {result.analysis.iframes.total}
                             </span>
                           </div>
-                          {result.analysis.iframes.hidden_count !== undefined && (
+                          {result.analysis.iframes.hidden_count !==
+                            undefined && (
                             <div className="us-tech-row">
                               <span>Hidden</span>
                               <span
@@ -1204,7 +1289,10 @@ export default function UrlScanner() {
                       </div>
                       {result.analysis.metadata.description && (
                         <>
-                          <div className="us-meta-label" style={{ marginTop: 8 }}>
+                          <div
+                            className="us-meta-label"
+                            style={{ marginTop: 8 }}
+                          >
                             Description
                           </div>
                           <div className="us-meta-desc">
@@ -1218,15 +1306,19 @@ export default function UrlScanner() {
                   {/* Scan Meta */}
                   <div className="us-scan-meta">
                     <span>
-                      Duration: <strong>{result.scanDuration || "N/A"}ms</strong>
+                      Duration:{" "}
+                      <strong>{result.scanDuration || "N/A"}ms</strong>
                     </span>
                     <span>
-                      Scanned: <strong>{fmtDate(result.timestamp)}</strong>
+                      Scanned:{" "}
+                      <strong>{fmtDate(result.timestamp)}</strong>
                     </span>
                     <span>
                       Type:{" "}
                       <strong>
-                        {result.scanType === "deep" ? "Deep Scan" : "Quick Scan"}
+                        {result.scanType === "deep"
+                          ? "Deep Scan"
+                          : "Quick Scan"}
                       </strong>
                     </span>
                     <span>
@@ -1260,7 +1352,10 @@ export default function UrlScanner() {
         <div className="card">
           <div className="card-hdr">
             <span className="card-title">📜 Scan History</span>
-            <button className="btn btn-ghost btn-sm" onClick={loadHistory}>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={loadHistory}
+            >
               ↻ Refresh
             </button>
           </div>
@@ -1287,7 +1382,9 @@ export default function UrlScanner() {
                         <div className="us-hist-url">{scan.url}</div>
                         <div className="us-hist-meta">
                           <span>{fmtDate(scan.createdAt)}</span>
-                          {scan.scanDuration && <span>{scan.scanDuration}ms</span>}
+                          {scan.scanDuration && (
+                            <span>{scan.scanDuration}ms</span>
+                          )}
                           {scan.scanType && (
                             <span style={{ color: "var(--purple)" }}>
                               {scan.scanType}
@@ -1373,68 +1470,6 @@ export default function UrlScanner() {
       )}
 
       {/* ============================================================ */}
-      {/*                       ANALYTICS TAB                           */}
-      {/* ============================================================ */}
-      {activeTab === "analytics" && (
-        <div className="us-an-grid anim-up">
-          <div className="card">
-            <div className="card-hdr">
-              <span className="card-title">🌍 Traffic Distribution by Country</span>
-            </div>
-            <div className="us-an-list">
-              {analyticsData.countries.map((c) => (
-                <div key={c.code} className="us-an-row">
-                  <div className="us-an-label">
-                    <span className="us-an-flag">{c.flag}</span>
-                    <span className="us-an-name">{c.name}</span>
-                  </div>
-                  <div className="us-an-bar-track">
-                    <div
-                      className="us-an-bar-fill"
-                      style={{
-                        width: `${c.percent}%`,
-                        background: getBarColor(c.percent),
-                      }}
-                    />
-                  </div>
-                  <div className="us-an-val">{c.percent}%</div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="card">
-            <div className="card-hdr">
-              <span className="card-title">🔗 Most Frequently Accessed Links</span>
-            </div>
-            <div className="us-an-list">
-              {analyticsData.topLinks.map((l, i) => (
-                <div key={i} className="us-an-link-row">
-                  <div className="us-an-link-info">
-                    <div className="us-an-link-url">{l.url}</div>
-                    {l.risk && (
-                      <span
-                        className="badge"
-                        style={{
-                          background: sevBg(l.risk),
-                          color: sevColor(l.risk),
-                          fontSize: "0.65rem",
-                        }}
-                      >
-                        {l.risk.toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="us-an-link-hits">
-                    {l.hits.toLocaleString()} hits
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================ */}
       {/*                    WEBSITE CHECKLIST TAB                      */}
       {/* ============================================================ */}
       {activeTab === "checklist" && (
@@ -1455,8 +1490,8 @@ export default function UrlScanner() {
             ))}
           </div>
           <p className="us-checklist-note">
-            This checklist helps users quickly evaluate whether a website interface
-            appears trustworthy and safe to use.
+            This checklist helps users quickly evaluate whether a website
+            interface appears trustworthy and safe to use.
           </p>
         </div>
       )}

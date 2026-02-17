@@ -1,8 +1,49 @@
+/* ============================================================ */
+/* UrlScanner - Uses Global CSS Variables from index.css        */
+/* ============================================================ */
+
+/* ============================================================ */
+/* CONTAINER & LAYOUT                                           */
+/* ============================================================ */
 .us-container {
   max-width: 1100px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text);
 }
 
-/* Header */
+/* ============================================================ */
+/* CARDS                                                        */
+/* ============================================================ */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.card-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+.card-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-sec);
+}
+.badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 50px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* ============================================================ */
+/* HEADER                                                       */
+/* ============================================================ */
 .us-header {
   margin-bottom: 20px;
 }
@@ -20,7 +61,9 @@
   margin-top: 4px;
 }
 
-/* Stats Bar */
+/* ============================================================ */
+/* STATS BAR                                                    */
+/* ============================================================ */
 .us-stats-bar {
   display: flex;
   gap: 18px;
@@ -49,7 +92,9 @@
   letter-spacing: 0.5px;
 }
 
-/* Tabs */
+/* ============================================================ */
+/* TABS                                                         */
+/* ============================================================ */
 .us-tabs {
   display: flex;
   gap: 4px;
@@ -80,7 +125,9 @@
   z-index: 1;
 }
 
-/* Input */
+/* ============================================================ */
+/* INPUT SECTION                                                */
+/* ============================================================ */
 .us-input-card {
   margin-bottom: 20px;
 }
@@ -129,9 +176,7 @@
   animation: spin 0.6s linear infinite;
 }
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 /* Quick URLs */
@@ -183,7 +228,9 @@
   font-weight: 600;
 }
 
-/* Verdict Card */
+/* ============================================================ */
+/* VERDICT CARD                                                 */
+/* ============================================================ */
 .us-verdict-card {
   border-width: 2px;
   margin-bottom: 18px;
@@ -317,7 +364,9 @@
   background: rgba(0, 230, 122, 0.08) !important;
 }
 
-/* Findings Summary Bar */
+/* ============================================================ */
+/* FINDINGS & DETAILS                                           */
+/* ============================================================ */
 .us-findings-summary {
   display: flex;
   gap: 12px;
@@ -367,12 +416,6 @@
   gap: 16px;
   margin-bottom: 18px;
 }
-@media (max-width: 768px) {
-  .us-details-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .us-detail-card {
   padding: 18px;
 }
@@ -414,17 +457,16 @@
   margin-top: 2px;
 }
 
-/* Findings List */
+/* Finding Cards */
 .us-findings-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-
-/* Finding Card */
 .us-finding-card {
   border-radius: var(--radius-sm);
   padding: 14px 16px;
+  margin-bottom: 8px;
 }
 .us-finding-header {
   display: flex;
@@ -507,27 +549,16 @@
   font-size: 0.78rem;
   margin-bottom: 8px;
 }
-.us-hdr-present {
-  color: var(--green);
-}
-.us-hdr-missing {
-  color: var(--red);
-}
+.us-hdr-present { color: var(--green); }
+.us-hdr-missing { color: var(--red); }
 .us-hdr-item {
   font-size: 0.75rem;
   font-family: var(--mono);
   padding: 3px 0;
 }
-.us-hdr-ok {
-  color: var(--text-sec);
-}
-.us-hdr-bad {
-  color: var(--text-dim);
-}
-.us-hdr-none {
-  font-size: 0.75rem;
-  color: var(--text-dim);
-}
+.us-hdr-ok { color: var(--text-sec); }
+.us-hdr-bad { color: var(--text-dim); }
+.us-hdr-none { font-size: 0.75rem; color: var(--text-dim); }
 
 /* Technical Analysis */
 .us-tech-card {
@@ -537,11 +568,6 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
-}
-@media (max-width: 768px) {
-  .us-tech-grid {
-    grid-template-columns: 1fr;
-  }
 }
 .us-tech-section {
   background: rgba(0, 0, 0, 0.12);
@@ -571,12 +597,8 @@
   font-weight: 600;
   color: var(--text);
 }
-.us-mono {
-  font-family: var(--mono);
-}
-.us-cyan {
-  color: var(--cyan) !important;
-}
+.us-mono { font-family: var(--mono); }
+.us-cyan { color: var(--cyan) !important; }
 
 /* Metadata */
 .us-metadata {
@@ -614,7 +636,9 @@
   color: var(--text-sec);
 }
 
-/* History */
+/* ============================================================ */
+/* HISTORY                                                      */
+/* ============================================================ */
 .us-history-list {
   display: flex;
   flex-direction: column;
@@ -648,7 +672,7 @@
 .us-hist-url {
   font-size: 0.82rem;
   font-family: var(--mono);
-  color: var(--cyan);
+  color: var(--black);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -683,7 +707,196 @@
   color: var(--text-dim);
 }
 
-/* Responsive */
+/* ============================================================ */
+/* ANALYTICS                                                    */
+/* ============================================================ */
+.us-an-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.us-an-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.us-an-row {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+}
+.us-an-label {
+  width: 140px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.us-an-flag {
+  font-size: 1.2rem;
+}
+.us-an-name {
+  color: var(--text-sec);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.us-an-bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  margin: 0 12px;
+  overflow: hidden;
+}
+.us-an-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1s ease-out;
+}
+.us-an-val {
+  width: 45px;
+  text-align: right;
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.us-an-link-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition: background 0.2s;
+}
+.us-an-link-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border);
+}
+.us-an-link-info {
+  display: flex;
+  flex-direction: column;
+  max-width: 70%;
+}
+.us-an-link-url {
+  color: var(--blue);
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.us-an-link-hits {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* ============================================================ */
+/* WEBSITE SAFETY CHECKLIST                                     */
+/* ============================================================ */
+.us-checklist-card {
+  padding: 24px;
+  background: var(--bg-card);
+  animation: anim-up 0.4s ease-out;
+}
+
+.us-checklist-intro {
+  font-size: 0.95rem;
+  color: var(--text-sec);
+  line-height: 1.6;
+  margin-bottom: 24px;
+  border-left: 3px solid var(--blue);
+  padding-left: 15px;
+}
+
+.us-checklist-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.us-checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(77, 141, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.us-checklist-item:hover {
+  background: rgba(77, 141, 255, 0.08);
+  border-color: var(--blue);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.us-checklist-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 2px rgba(0, 230, 122, 0.4));
+}
+
+.us-checklist-item span:not(.us-checklist-icon) {
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.us-checklist-note {
+  margin-top: 30px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--text-dim);
+  text-align: center;
+  border: 1px dashed var(--border);
+}
+
+/* ============================================================ */
+/* ANIMATIONS & RESPONSIVE                                      */
+/* ============================================================ */
+.anim-up {
+  animation: anim-up 0.4s ease-out;
+}
+
+@keyframes anim-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .us-details-grid,
+  .us-tech-grid,
+  .us-an-grid {
+    grid-template-columns: 1fr;
+  }
+  .us-hist-url {
+    max-width: 200px;
+  }
+}
+
 @media (max-width: 600px) {
   .us-input-row {
     flex-wrap: wrap;
@@ -711,7 +924,7 @@
   .us-headers-grid {
     grid-template-columns: 1fr;
   }
-  .us-hist-url {
-    max-width: 200px;
+  .us-checklist-list {
+    grid-template-columns: 1fr;
   }
 }

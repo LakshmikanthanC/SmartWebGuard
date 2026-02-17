@@ -180,9 +180,7 @@ const SAMPLE_R2L = {
 };
 
 export default function PredictionPanel() {
-  const [jsonInput, setJsonInput] = useState(
-    JSON.stringify(SAMPLE_NORMAL, null, 2)
-  );
+  const [featureValues, setFeatureValues] = useState({ ...SAMPLE_NORMAL });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -194,8 +192,7 @@ export default function PredictionPanel() {
     setError(null);
     setResult(null);
     try {
-      const parsed = JSON.parse(jsonInput);
-      const { data } = await postPredict(parsed);
+      const { data } = await postPredict(featureValues);
       if (data.error) {
         const err = data.error;
         const errMsg = typeof err === 'object' ? err.message || JSON.stringify(err) : err;
@@ -204,13 +201,9 @@ export default function PredictionPanel() {
         setResult(data);
       }
     } catch (e) {
-      if (e instanceof SyntaxError) {
-        setError("Invalid JSON format. Please check your input.");
-      } else {
-        const err = e.response?.data?.error;
-        const errMsg = typeof err === 'object' ? err.message || JSON.stringify(err) : err || e.message || "Prediction failed";
-        setError(errMsg);
-      }
+      const err = e.response?.data?.error;
+      const errMsg = typeof err === 'object' ? err.message || JSON.stringify(err) : err || e.message || "Prediction failed";
+      setError(errMsg);
     }
     setLoading(false);
   };
@@ -233,10 +226,20 @@ export default function PredictionPanel() {
   };
 
   const loadSample = (sample, name) => {
-    setJsonInput(JSON.stringify(sample, null, 2));
+    setFeatureValues({ ...sample });
     setResult(null);
     setError(null);
   };
+
+  const handleFieldChange = (field, value) => {
+    setFeatureValues(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Get all keys from the sample object for consistent ordering
+  const fieldKeys = Object.keys(SAMPLE_NORMAL);
 
   return (
     <div className="pp-container">
@@ -252,7 +255,7 @@ export default function PredictionPanel() {
         <div className="pp-input-panel">
           <div className="card">
             <div className="card-hdr">
-              <span className="card-title">📝 Traffic Features (JSON)</span>
+              <span className="card-title">📝 Traffic Features</span>
             </div>
 
             <div className="pp-samples">
@@ -283,13 +286,31 @@ export default function PredictionPanel() {
               </button>
             </div>
 
-            <textarea
-              className="pp-textarea"
-              value={jsonInput}
-              onChange={(e) => setJsonInput(e.target.value)}
-              spellCheck={false}
-              rows={20}
-            />
+            <div className="pp-table-wrapper">
+              <table className="pp-features-table">
+                <thead>
+                  <tr>
+                    <th>Field</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fieldKeys.map((key) => (
+                    <tr key={key}>
+                      <td className="pp-field-name">{key}</td>
+                      <td className="pp-field-value">
+                        <input
+                          type="text"
+                          className="pp-field-input"
+                          value={featureValues[key]}
+                          onChange={(e) => handleFieldChange(key, e.target.value)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <div className="pp-actions">
               <button
