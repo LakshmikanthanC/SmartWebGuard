@@ -84,7 +84,7 @@ app.post("/api/simulation/stop", (_, res) => { clearInterval(simTimer); simTimer
 app.get("/api/simulation/status", (_, res) => res.json({ running: !!simTimer }));
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 3000;
 (async () => {
   await connectDB();
   server.listen(PORT, () => {

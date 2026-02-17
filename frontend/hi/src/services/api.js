@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API = process.env.REACT_APP_API_URL || "http://localhost:4000/api";
+const API = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 const api = axios.create({ baseURL: API, timeout: 30000 });
 
 export const getDashboard = () => api.get("/analytics/dashboard");

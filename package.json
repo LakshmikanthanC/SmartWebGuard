@@ -1,0 +1,15 @@
+{
+  "name": "broo",
+  "version": "2.0.0",
+  "description": "AI-Based Network Intrusion Detection System",
+  "scripts": {
+    "start": "npm run start:backend",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend/hi && npm run dev",
+    "install:all": "cd backend && npm install && cd ../frontend/hi && npm install"
+  },
+  "dependencies": {
+    "jspdf": "^4.1.0",
+    "jspdf-autotable": "^5.0.7"
+  }
+}
