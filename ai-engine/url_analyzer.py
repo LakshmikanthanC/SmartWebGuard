@@ -25,6 +25,61 @@ try:
 except ImportError:
     HAS_BS4 = False
 
+# Import configurations from config.py
+try:
+    from config import (
+        SUSPICIOUS_TLDS,
+        TRUSTED_DOMAINS,
+        PHISHING_KEYWORDS,
+        BRAND_NAMES,
+        URL_ANALYZER_CONFIG,
+        STANDARD_PORTS,
+        PHISHING_URGENCY_KEYWORDS,
+        PRIVATE_IP_RANGES,
+        SUSPICIOUS_PATTERNS,
+        MALWARE_FILE_PATTERNS,
+        MALICIOUS_JS_PATTERNS,
+        CRYPTOMINER_PATTERNS,
+        VIRUSTOTAL_API_KEY,
+        GOOGLE_SAFE_BROWSING_API_KEY,
+        ABUSEIPDB_API_KEY,
+    )
+    # Use config values with fallbacks to empty lists if not available
+    _suspicious_tlds = SUSPICIOUS_TLDS if SUSPICIOUS_TLDS else []
+    _trusted_domains = TRUSTED_DOMAINS if TRUSTED_DOMAINS else []
+    _phishing_keywords = PHISHING_KEYWORDS if PHISHING_KEYWORDS else []
+    _brand_names = BRAND_NAMES if BRAND_NAMES else []
+    _standard_ports = STANDARD_PORTS if STANDARD_PORTS else [80, 443, 8080, 8443]
+    _phishing_urgency_keywords = PHISHING_URGENCY_KEYWORDS if PHISHING_URGENCY_KEYWORDS else []
+    _private_ip_ranges = PRIVATE_IP_RANGES if PRIVATE_IP_RANGES else []
+    _suspicious_patterns = SUSPICIOUS_PATTERNS if SUSPICIOUS_PATTERNS else []
+    _malware_file_patterns = MALWARE_FILE_PATTERNS if MALWARE_FILE_PATTERNS else []
+    _malicious_js_patterns = MALICIOUS_JS_PATTERNS if MALICIOUS_JS_PATTERNS else []
+    _cryptominer_patterns = CRYPTOMINER_PATTERNS if CRYPTOMINER_PATTERNS else []
+    _url_config = URL_ANALYZER_CONFIG if URL_ANALYZER_CONFIG else {}
+    # API keys - will be used for external API calls
+    _virustotal_key = VIRUSTOTAL_API_KEY if VIRUSTOTAL_API_KEY else ""
+    _google_safe_browsing_key = GOOGLE_SAFE_BROWSING_API_KEY if GOOGLE_SAFE_BROWSING_API_KEY else ""
+    _abuseipdb_key = ABUSEIPDB_API_KEY if ABUSEIPDB_API_KEY else ""
+except ImportError:
+    # Fallback to empty lists if config import fails
+    _suspicious_tlds = []
+    _trusted_domains = []
+    _phishing_keywords = []
+    _brand_names = []
+    _standard_ports = [80, 443, 8080, 8443]
+    _phishing_urgency_keywords = []
+    _private_ip_ranges = []
+    _suspicious_patterns = []
+    _malware_file_patterns = []
+    _malicious_js_patterns = []
+    _cryptominer_patterns = []
+    _url_config = {}
+    # No API keys available
+    _virustotal_key = ""
+    _google_safe_browsing_key = ""
+    _abuseipdb_key = ""
+
 
 class ThreatFinding:
     """Structured threat finding with category, severity, and explanation."""
@@ -67,16 +122,18 @@ CAT_HEADERS = "Security Headers"
 
 
 class URLAnalyzer:
+    _country_mention_patterns_cache = None
 
     def __init__(self):
-        self.suspicious_tlds = [
+        # Use configuration from config.py with fallbacks to hardcoded defaults
+        self.suspicious_tlds = _suspicious_tlds if _suspicious_tlds else [
             ".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top",
             ".club", ".work", ".date", ".racing", ".win", ".bid",
             ".stream", ".download", ".loan", ".men", ".click",
             ".link", ".party", ".review", ".science", ".zip", ".mov"
         ]
 
-        self.trusted_domains = [
+        self.trusted_domains = _trusted_domains if _trusted_domains else [
             "google.com", "youtube.com", "facebook.com", "amazon.com",
             "wikipedia.org", "twitter.com", "instagram.com", "linkedin.com",
             "microsoft.com", "apple.com", "github.com", "stackoverflow.com",
@@ -89,7 +146,7 @@ class URLAnalyzer:
             "figma.com", "vercel.com", "netlify.com", "heroku.com",
         ]
 
-        self.phishing_keywords = [
+        self.phishing_keywords = _phishing_keywords if _phishing_keywords else [
             "login", "signin", "sign-in", "verify", "verification",
             "account", "update", "secure", "banking", "confirm",
             "password", "credential", "authenticate", "wallet",
@@ -98,14 +155,14 @@ class URLAnalyzer:
             "expire", "compromised", "unauthorized", "validate",
         ]
 
-        self.brand_names = [
+        self.brand_names = _brand_names if _brand_names else [
             "paypal", "amazon", "apple", "microsoft", "google",
             "facebook", "netflix", "instagram", "whatsapp", "twitter",
             "linkedin", "dropbox", "adobe", "chase", "wellsfargo",
             "bankofamerica", "citibank", "hsbc", "barclays",
         ]
 
-        self.suspicious_patterns = [
+        self.suspicious_patterns = _suspicious_patterns if _suspicious_patterns else [
             (r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', "IP address in URL"),
             (r'[a-zA-Z0-9]{30,}', "Very long random string"),
             (r'@', "@ symbol (URL obfuscation)"),
@@ -119,7 +176,7 @@ class URLAnalyzer:
             (r'\.(php|asp|jsp)\?.*=.*&.*=', "Complex server-side query"),
         ]
 
-        self.malware_file_patterns = [
+        self.malware_file_patterns = _malware_file_patterns if _malware_file_patterns else [
             (r'\.exe(\?|$|&)', "Windows executable (.exe)"),
             (r'\.msi(\?|$|&)', "Windows installer (.msi)"),
             (r'\.dll(\?|$|&)', "Dynamic library (.dll)"),
@@ -140,7 +197,7 @@ class URLAnalyzer:
             (r'torrent', "Torrent reference"),
         ]
 
-        self.malicious_js_patterns = [
+        self.malicious_js_patterns = _malicious_js_patterns if _malicious_js_patterns else [
             (r'eval\s*\(\s*unescape', "eval(unescape()) — code execution via decoding"),
             (r'eval\s*\(\s*atob', "eval(atob()) — base64 decoded execution"),
             (r'eval\s*\(\s*String\.fromCharCode',
@@ -163,7 +220,7 @@ class URLAnalyzer:
              "Unicode-encoded string — hidden payload"),
         ]
 
-        self.cryptominer_patterns = [
+        self.cryptominer_patterns = _cryptominer_patterns if _cryptominer_patterns else [
             (r'coinhive', "CoinHive miner"),
             (r'cryptonight', "CryptoNight algorithm"),
             (r'coin-?hive', "CoinHive variant"),
@@ -192,6 +249,278 @@ class URLAnalyzer:
             })
             self.session.max_redirects = 10
             self.session.verify = True
+
+        # Store API keys from config
+        self.virustotal_key = _virustotal_key
+        self.google_safe_browsing_key = _google_safe_browsing_key
+        self.abuseipdb_key = _abuseipdb_key
+        self.external_api_timeout = int(_url_config.get("external_api_timeout", 6))
+        self.deep_scan_timeout = int(_url_config.get("deep_scan_timeout", 6))
+        self.deep_scan_max_bytes = int(_url_config.get("deep_scan_max_bytes", 500_000))
+        self.subpage_crawl_limit = int(_url_config.get("subpage_crawl_limit", 6))
+        self.subpage_crawl_timeout = int(_url_config.get("subpage_crawl_timeout", 4))
+        self.subpage_crawl_max_bytes = int(_url_config.get("subpage_crawl_max_bytes", 250_000))
+        self.country_mention_patterns = self._load_country_mention_patterns()
+
+    # ==========================================================
+    # EXTERNAL API CALLS
+    # ==========================================================
+
+    def _check_virustotal(self, url, result):
+        """Check URL against VirusTotal API."""
+        if not self.virustotal_key:
+            result["analysis"]["reputation"]["virustotal"] = {
+                "checked": False,
+                "reason": "No API key configured"
+            }
+            return
+
+        try:
+            # Submit URL for scanning
+            vt_url = "https://www.virustotal.com/api/v3/urls"
+            headers = {"x-apikey": self.virustotal_key}
+            
+            # First, submit the URL
+            encoded_url = url.encode('utf-8')
+            import base64
+            url_id = base64.urlsafe_b64encode(encoded_url).decode('utf-8').rstrip('=')
+            
+            # Get the analysis result
+            response = self.session.get(
+                f"{vt_url}/{url_id}",
+                headers=headers,
+                timeout=self.external_api_timeout
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                stats = data.get("data", {}).get("attributes", {}).get("last_analysis_stats", {})
+                malicious = stats.get("malicious", 0)
+                suspicious = stats.get("suspicious", 0)
+                harmless = stats.get("harmless", 0)
+                undetected = stats.get("undetected", 0)
+                
+                total = malicious + suspicious + harmless + undetected
+                
+                result["analysis"]["reputation"]["virustotal"] = {
+                    "checked": True,
+                    "malicious": malicious,
+                    "suspicious": suspicious,
+                    "harmless": harmless,
+                    "undetected": undetected,
+                    "total_engines": total,
+                }
+                
+                if malicious > 0:
+                    self._add_finding(result, ThreatFinding(
+                        CAT_REPUTATION, "Malicious - VirusTotal", "critical",
+                        f"VirusTotal detected this URL as malicious by {malicious} security vendors. "
+                        f"This URL is associated with malware, phishing, or other threats.",
+                        evidence=f"Malicious: {malicious}, Suspicious: {suspicious}",
+                        recommendation="Do NOT visit this URL. It has been flagged by multiple security vendors.",
+                        risk_points=min(50, malicious * 5),
+                    ))
+                elif suspicious > 0:
+                    self._add_finding(result, ThreatFinding(
+                        CAT_REPUTATION, "Suspicious - VirusTotal", "high",
+                        f"VirusTotal flagged this URL as suspicious by {suspicious} security vendors.",
+                        evidence=f"Suspicious: {suspicious}",
+                        recommendation="Exercise caution when visiting this URL.",
+                        risk_points=suspicious * 3,
+                    ))
+                elif total > 0 and malicious == 0 and suspicious == 0:
+                    self._add_finding(result, ThreatFinding(
+                        CAT_REPUTATION, "Clean - VirusTotal", "info",
+                        f"VirusTotal shows this URL as clean ({harmless} vendors flagged it as harmless).",
+                        evidence=f"Clean: {harmless} of {total} engines",
+                        risk_points=-10,
+                    ))
+            elif response.status_code == 404:
+                # URL not found in database, submit for scanning
+                result["analysis"]["reputation"]["virustotal"] = {
+                    "checked": False,
+                    "reason": "URL not in VirusTotal database"
+                }
+            else:
+                result["analysis"]["reputation"]["virustotal"] = {
+                    "checked": False,
+                    "error": f"API returned status {response.status_code}"
+                }
+        except Exception as e:
+            result["analysis"]["reputation"]["virustotal"] = {
+                "checked": False,
+                "error": str(e)[:100]
+            }
+
+    def _check_google_safe_browsing(self, url, result):
+        """Check URL against Google Safe Browsing API."""
+        if not self.google_safe_browsing_key:
+            result["analysis"]["reputation"]["google_safe_browsing"] = {
+                "checked": False,
+                "reason": "No API key configured"
+            }
+            return
+
+        try:
+            gsb_url = "https://safebrowsing.googleapis.com/v4/threatMatches:find"
+            payload = {
+                "client": {
+                    "clientId": "smartwebguard",
+                    "clientVersion": "1.0.0"
+                },
+                "threatInfo": {
+                    "threatTypes": [
+                        "MALWARE", "SOCIAL_ENGINEERING", 
+                        "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"
+                    ],
+                    "platformTypes": ["ANY_PLATFORM"],
+                    "threatEntryTypes": ["URL"],
+                    "threatEntries": [
+                        {"url": url}
+                    ]
+                }
+            }
+            
+            params = {"key": self.google_safe_browsing_key}
+            response = self.session.post(
+                gsb_url, 
+                json=payload, 
+                params=params,
+                timeout=self.external_api_timeout
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                matches = data.get("matches", [])
+                
+                if matches:
+                    threat_types = set(m.get("threatType") for m in matches)
+                    self._add_finding(result, ThreatFinding(
+                        CAT_REPUTATION, "Google Safe Browsing - Threat Detected", "critical",
+                        f"Google Safe Browsing flagged this URL as: {', '.join(threat_types)}. "
+                        "This URL is associated with malicious content.",
+                        evidence=f"Threat types: {', '.join(threat_types)}",
+                        recommendation="Do NOT visit this URL. It has been flagged by Google as dangerous.",
+                        risk_points=40,
+                    ))
+                    result["analysis"]["reputation"]["google_safe_browsing"] = {
+                        "checked": True,
+                        "threats": list(threat_types),
+                        "is_safe": False
+                    }
+                else:
+                    self._add_finding(result, ThreatFinding(
+                        CAT_REPUTATION, "Google Safe Browsing - Clean", "info",
+                        "Google Safe Browsing did not detect any threats for this URL.",
+                        risk_points=-10,
+                    ))
+                    result["analysis"]["reputation"]["google_safe_browsing"] = {
+                        "checked": True,
+                        "is_safe": True
+                    }
+            else:
+                result["analysis"]["reputation"]["google_safe_browsing"] = {
+                    "checked": False,
+                    "error": f"API returned status {response.status_code}"
+                }
+        except Exception as e:
+            result["analysis"]["reputation"]["google_safe_browsing"] = {
+                "checked": False,
+                "error": str(e)[:100]
+            }
+
+    def _check_abuseipdb(self, domain, result):
+        """Check IP address against AbuseIPDB API."""
+        if not self.abuseipdb_key:
+            result["analysis"]["reputation"]["abuseipdb"] = {
+                "checked": False,
+                "reason": "No API key configured"
+            }
+            return
+
+        try:
+            # Resolve domain to IP
+            ip = socket.gethostbyname(domain)
+            result["analysis"]["domain"]["resolved_ip"] = ip
+            
+            abuse_url = "https://api.abuseipdb.com/api/v2/check"
+            headers = {
+                "Key": self.abuseipdb_key,
+                "Accept": "application/json"
+            }
+            params = {
+                "ipAddress": ip,
+                "maxAgeInDays": 90,
+                "verbose": ""
+            }
+            
+            response = self.session.get(
+                abuse_url,
+                headers=headers,
+                params=params,
+                timeout=self.external_api_timeout
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                abuse_data = data.get("data", {})
+                
+                abuse_score = abuse_data.get("abuseConfidenceScore", 0)
+                isp = abuse_data.get("isp", "Unknown")
+                country = abuse_data.get("countryCode", "Unknown")
+                num_reports = abuse_data.get("totalReports", 0)
+                num_sources = abuse_data.get("numDistinctUsers", 0)
+                
+                result["analysis"]["reputation"]["abuseipdb"] = {
+                    "checked": True,
+                    "ip_address": ip,
+                    "abuse_score": abuse_score,
+                    "isp": isp,
+                    "country": country,
+                    "total_reports": num_reports,
+                    "num_sources": num_sources,
+                }
+                
+                if abuse_score >= 50:
+                    self._add_finding(result, ThreatFinding(
+                        CAT_REPUTATION, "AbuseIPDB - High Risk IP", "critical",
+                        f"This IP ({ip}) has an abuse confidence score of {abuse_score}%. "
+                        f"It has been reported {num_reports} times by {num_sources} sources. "
+                        f"ISP: {isp}, Country: {country}",
+                        evidence=f"Abuse score: {abuse_score}%, Reports: {num_reports}",
+                        recommendation="This IP is associated with malicious activity. Avoid connecting to it.",
+                        risk_points=min(50, abuse_score // 2),
+                    ))
+                elif abuse_score >= 25:
+                    self._add_finding(result, ThreatFinding(
+                        CAT_REPUTATION, "AbuseIPDB - Suspicious IP", "high",
+                        f"This IP ({ip}) has a moderate abuse confidence score of {abuse_score}%.",
+                        evidence=f"Abuse score: {abuse_score}%",
+                        recommendation="Exercise caution with this IP address.",
+                        risk_points=abuse_score // 2,
+                    ))
+                else:
+                    self._add_finding(result, ThreatFinding(
+                        CAT_REPUTATION, "AbuseIPDB - Low Risk IP", "info",
+                        f"This IP ({ip}) has a low abuse confidence score of {abuse_score}%.",
+                        evidence=f"Abuse score: {abuse_score}%",
+                        risk_points=0,
+                    ))
+            else:
+                result["analysis"]["reputation"]["abuseipdb"] = {
+                    "checked": False,
+                    "error": f"API returned status {response.status_code}"
+                }
+        except socket.gaierror:
+            result["analysis"]["reputation"]["abuseipdb"] = {
+                "checked": False,
+                "error": "Could not resolve domain"
+            }
+        except Exception as e:
+            result["analysis"]["reputation"]["abuseipdb"] = {
+                "checked": False,
+                "error": str(e)[:100]
+            }
 
     def analyze(self, url, deep_scan=True):
         start_time = time.time()
@@ -278,6 +607,13 @@ class URLAnalyzer:
 
             # Reputation
             self._check_domain_reputation(parsed, result)
+
+            # External API checks (VirusTotal, Google Safe Browsing, AbuseIPDB)
+            # Run only in deep mode to keep quick scans fast.
+            if deep_scan and HAS_REQUESTS and self.session:
+                self._check_virustotal(url, result)
+                self._check_google_safe_browsing(url, result)
+                self._check_abuseipdb(parsed["domain"], result)
 
             # Deep scan
             if deep_scan and HAS_REQUESTS:
@@ -798,7 +1134,7 @@ class URLAnalyzer:
 
         try:
             resp = self.session.get(
-                parsed["full_url"], timeout=10,
+                parsed["full_url"], timeout=self.deep_scan_timeout,
                 allow_redirects=True, stream=True
             )
 
@@ -814,11 +1150,14 @@ class URLAnalyzer:
                 ))
                 return
 
-            content = resp.text[:2_000_000]
+            content = resp.text[: self.deep_scan_max_bytes]
 
             self._analyze_headers(resp, result)
             self._analyze_redirects(resp, parsed, result)
-            self._analyze_html(content, result)
+            self._analyze_html(content, parsed, result)
+            self._discover_subpages_from_sitemap(parsed, result)
+            self._extract_country_mentions(content, result)
+            self._crawl_subpages_for_countries(result)
             self._detect_malicious_scripts(content, result)
             self._detect_cryptominers(content, result)
             self._detect_hidden_iframes(content, result)
@@ -844,7 +1183,7 @@ class URLAnalyzer:
         except requests.exceptions.Timeout:
             self._add_finding(result, ThreatFinding(
                 CAT_NETWORK, "Connection Timeout", "low",
-                "The website took too long to respond (>10s).",
+                f"The website took too long to respond (>{self.deep_scan_timeout}s).",
                 risk_points=5,
             ))
         except requests.exceptions.TooManyRedirects:
@@ -966,7 +1305,7 @@ class URLAnalyzer:
                     risk_points=10,
                 ))
 
-    def _analyze_html(self, content, result):
+    def _analyze_html(self, content, parsed, result):
         if not HAS_BS4:
             result["analysis"]["content"]["parser"] = "regex_only"
             return
@@ -1014,8 +1353,215 @@ class URLAnalyzer:
             result["analysis"]["content"]["links"] = len(links)
             result["analysis"]["content"]["inputs"] = len(inputs)
 
+            # Collect internal subpages from anchor tags.
+            domain = parsed.get("domain", "")
+            subpages = []
+            seen = set()
+            for link in links:
+                href = (link.get("href") or "").strip()
+                if not href:
+                    continue
+                lowered = href.lower()
+                if lowered.startswith(("#", "javascript:", "mailto:", "tel:")):
+                    continue
+                abs_url = urllib.parse.urljoin(parsed.get("full_url", ""), href)
+                try:
+                    u = urllib.parse.urlparse(abs_url)
+                except Exception:
+                    continue
+                host = (u.netloc or "").lower().replace("www.", "")
+                if not host or not (host == domain or host.endswith("." + domain)):
+                    continue
+                path = u.path or "/"
+                if path in ("/", ""):
+                    continue
+                normalized = urllib.parse.urlunparse(
+                    (u.scheme, u.netloc, path, "", "", "")
+                )
+                if normalized in seen:
+                    continue
+                seen.add(normalized)
+                subpages.append(normalized)
+                if len(subpages) >= 30:
+                    break
+            result["analysis"]["content"]["subpages"] = subpages
+
         except Exception:
             pass
+
+    def _find_country_mentions(self, content):
+        if not self.country_mention_patterns:
+            return []
+
+        counts = {}
+        for canonical, pattern in self.country_mention_patterns:
+            count = len(pattern.findall(content))
+            if count > 0:
+                counts[canonical] = counts.get(canonical, 0) + count
+
+        return [
+            {"name": name, "count": count}
+            for name, count in sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
+        ]
+
+    def _discover_subpages_from_sitemap(self, parsed, result):
+        if not HAS_REQUESTS or not self.session:
+            return
+
+        domain = parsed.get("domain", "")
+        if not domain:
+            return
+
+        sitemap_candidates = [
+            f"{parsed.get('scheme', 'https')}://{domain}/sitemap.xml",
+            f"{parsed.get('scheme', 'https')}://{domain}/sitemap_index.xml",
+        ]
+
+        existing = result["analysis"]["content"].get("subpages") or []
+        seen = set(existing)
+        discovered = list(existing)
+
+        for sitemap_url in sitemap_candidates:
+            try:
+                resp = self.session.get(
+                    sitemap_url,
+                    timeout=self.subpage_crawl_timeout,
+                    allow_redirects=True,
+                )
+                if resp.status_code != 200:
+                    continue
+                xml = resp.text[:1_000_000]
+                locs = re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", xml, re.IGNORECASE)
+                for loc in locs:
+                    try:
+                        u = urllib.parse.urlparse(loc.strip())
+                    except Exception:
+                        continue
+                    host = (u.netloc or "").lower().replace("www.", "")
+                    if not host or not (host == domain or host.endswith("." + domain)):
+                        continue
+                    path = u.path or "/"
+                    if path in ("/", ""):
+                        continue
+                    normalized = urllib.parse.urlunparse(
+                        (u.scheme or parsed.get("scheme", "https"), u.netloc, path, "", "", "")
+                    )
+                    if normalized in seen:
+                        continue
+                    seen.add(normalized)
+                    discovered.append(normalized)
+                    if len(discovered) >= 50:
+                        break
+                if len(discovered) >= 50:
+                    break
+            except Exception:
+                continue
+
+        result["analysis"]["content"]["subpages"] = discovered
+
+    def _load_country_mention_patterns(self):
+        if URLAnalyzer._country_mention_patterns_cache is not None:
+            return URLAnalyzer._country_mention_patterns_cache
+
+        patterns = []
+        if HAS_REQUESTS and self.session:
+            try:
+                resp = self.session.get(
+                    "https://restcountries.com/v3.1/all?fields=name,altSpellings,cca2,cca3",
+                    timeout=self.external_api_timeout,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for item in data if isinstance(data, list) else []:
+                        canonical = (
+                            item.get("name", {}).get("common")
+                            if isinstance(item, dict)
+                            else None
+                        )
+                        if not canonical:
+                            continue
+                        aliases = set()
+                        aliases.add(canonical)
+                        official = item.get("name", {}).get("official")
+                        if official:
+                            aliases.add(official)
+                        for alias in item.get("altSpellings", []) or []:
+                            if isinstance(alias, str):
+                                aliases.add(alias)
+                        cca3 = item.get("cca3")
+                        if isinstance(cca3, str):
+                            aliases.add(cca3)
+
+                        for term in aliases:
+                            norm = term.strip()
+                            if len(norm) < 3:
+                                continue
+                            escaped = re.escape(norm)
+                            pattern = re.compile(rf"\b{escaped}\b", re.IGNORECASE)
+                            patterns.append((canonical, pattern))
+            except Exception:
+                patterns = []
+
+        URLAnalyzer._country_mention_patterns_cache = patterns
+        return patterns
+
+    def _extract_country_mentions(self, content, result):
+        mentions = self._find_country_mentions(content)
+        result["analysis"]["content"]["mentioned_countries"] = mentions
+
+    def _merge_country_mentions(self, base_mentions, new_mentions):
+        merged = {}
+        for item in base_mentions or []:
+            name = item.get("name")
+            count = int(item.get("count", 0))
+            if name and count > 0:
+                merged[name] = merged.get(name, 0) + count
+        for item in new_mentions or []:
+            name = item.get("name")
+            count = int(item.get("count", 0))
+            if name and count > 0:
+                merged[name] = merged.get(name, 0) + count
+        return [
+            {"name": name, "count": count}
+            for name, count in sorted(merged.items(), key=lambda kv: kv[1], reverse=True)
+        ]
+
+    def _crawl_subpages_for_countries(self, result):
+        subpages = result["analysis"]["content"].get("subpages") or []
+        if not subpages or not HAS_REQUESTS or not self.session:
+            result["analysis"]["content"]["subpage_country_mentions"] = []
+            result["analysis"]["content"]["subpages_crawled"] = 0
+            return
+
+        details = []
+        merged_mentions = list(result["analysis"]["content"].get("mentioned_countries") or [])
+        crawled = 0
+
+        for subpage in subpages[: self.subpage_crawl_limit]:
+            try:
+                resp = self.session.get(
+                    subpage,
+                    timeout=self.subpage_crawl_timeout,
+                    allow_redirects=True,
+                    stream=True,
+                )
+                ctype = (resp.headers.get("Content-Type") or "").lower()
+                if "text/html" not in ctype:
+                    continue
+                content = resp.text[: self.subpage_crawl_max_bytes]
+                mentions = self._find_country_mentions(content)
+                details.append({
+                    "url": subpage,
+                    "mentioned_countries": mentions,
+                })
+                merged_mentions = self._merge_country_mentions(merged_mentions, mentions)
+                crawled += 1
+            except Exception:
+                continue
+
+        result["analysis"]["content"]["subpage_country_mentions"] = details
+        result["analysis"]["content"]["subpages_crawled"] = crawled
+        result["analysis"]["content"]["mentioned_countries"] = merged_mentions
 
     def _detect_malicious_scripts(self, content, result):
         found = []
@@ -1359,3 +1905,4 @@ analyzer = URLAnalyzer()
 
 def analyze_url(url, deep_scan=True):
     return analyzer.analyze(url, deep_scan)
+

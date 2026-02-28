@@ -109,4 +109,35 @@ router.get("/top-sources", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get("/country-distribution", async (req, res, next) => {
+  try {
+    const { period = "24h" } = req.query;
+    const ms = { "1h": 36e5, "24h": 864e5, "7d": 6048e5, "30d": 2592e6 };
+    const windowMs = ms[period] || 864e5;
+    const since = new Date(Date.now() - windowMs);
+
+    const countryData = await Alert.aggregate([
+      { $match: { timestamp: { $gte: since } } },
+      { $group: { _id: "$sourceCountry", count: { $sum: 1 }, types: { $addToSet: "$attackType" } } },
+      { $sort: { count: -1 } },
+      { $limit: 20 },
+    ]);
+
+    const distribution = {};
+    countryData.forEach((item) => {
+      distribution[item._id || "Unknown"] = item.count;
+    });
+
+    res.json({
+      countries: countryData.map((c) => ({
+        country: c._id || "Unknown",
+        count: c.count,
+        types: c.types,
+      })),
+      distribution,
+      total: countryData.reduce((sum, c) => sum + c.count, 0),
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

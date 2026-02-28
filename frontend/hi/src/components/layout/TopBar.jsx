@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSocket } from "../../context/SocketContext";
 import { useTheme } from "../../context/ThemeContext";
 import { getHealth } from "../../services/api";
+import AiChatbot from "../AiChatbot/AiChatbot";
 import "./TopBar.css";
 
 const titles = {
@@ -60,6 +61,7 @@ export default function TopBar({ currentPage }) {
             <span className={`dot ${aiOnline ? "dot-green" : "dot-red"}`} />
             <span>AI {aiOnline ? "Online" : "Offline"}</span>
           </div>
+          <AiChatbot inline />
         </div>
       </div>
     </header>

@@ -1,8 +1,18 @@
 const router = require("express").Router();
+const geoip = require("geoip-lite");
 const bridge = require("../services/pythonBridge");
 const Alert = require("../models/Alert");
 const { emitAlert } = require("../services/socketService");
 const { randIP, randPort } = require("../utils/helpers");
+
+const getCountry = (ip) => {
+  try {
+    const geo = geoip.lookup(ip);
+    return geo ? geo.country : "Unknown";
+  } catch (e) {
+    return "Unknown";
+  }
+};
 
 router.post("/", async (req, res, next) => {
   try {
@@ -13,9 +23,16 @@ router.post("/", async (req, res, next) => {
     const prediction = await bridge.predict(features);
 
     if (prediction.is_malicious) {
+      const sourceIP = features.source_ip || randIP();
+      const destinationIP = features.dest_ip || randIP();
+      const sourceCountry = getCountry(sourceIP);
+      const destinationCountry = getCountry(destinationIP);
+
       const alert = await Alert.create({
-        sourceIP: features.source_ip || randIP(),
-        destinationIP: features.dest_ip || randIP(),
+        sourceIP,
+        destinationIP,
+        sourceCountry,
+        destinationCountry,
         sourcePort: features.source_port || randPort(),
         destinationPort: features.dest_port || randPort(),
         protocol: features.protocol_type || "tcp",
@@ -28,6 +45,7 @@ router.post("/", async (req, res, next) => {
       emitAlert({
         _id: alert._id, timestamp: alert.timestamp,
         sourceIP: alert.sourceIP, destinationIP: alert.destinationIP,
+        sourceCountry: alert.sourceCountry, destinationCountry: alert.destinationCountry,
         attackType: alert.attackType, severity: alert.severity,
         confidence: alert.confidence,
       });

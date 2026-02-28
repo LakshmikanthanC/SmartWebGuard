@@ -5,20 +5,11 @@ const net = require("net");
 const UrlScan = require("../models/UrlScan");
 
 const AI_URL = process.env.AI_ENGINE_URL || "http://localhost:5000";
-const COUNTRY_META = {
-  us: { name: "United States", flag: "US" },
-  in: { name: "India", flag: "IN" },
-  gb: { name: "United Kingdom", flag: "GB" },
-  de: { name: "Germany", flag: "DE" },
-  br: { name: "Brazil", flag: "BR" },
-  jp: { name: "Japan", flag: "JP" },
-  fr: { name: "France", flag: "FR" },
-  au: { name: "Australia", flag: "AU" },
-  ca: { name: "Canada", flag: "CA" },
-  nl: { name: "Netherlands", flag: "NL" },
-  ru: { name: "Russia", flag: "RU" },
-  cn: { name: "China", flag: "CN" },
-};
+const GEOIPIFY_API_KEY = process.env.GEOIPIFY_API_KEY || "";
+const IPGEOLOCATION_API_KEY = process.env.IPGEOLOCATION_API_KEY || "";
+const IPINFO_TOKEN = process.env.IPINFO_TOKEN || "";
+const AI_SCAN_TIMEOUT_MS = Math.max(parseInt(process.env.AI_SCAN_TIMEOUT_MS || "120000", 10), 10000);
+const AI_BATCH_TIMEOUT_MS = Math.max(parseInt(process.env.AI_BATCH_TIMEOUT_MS || "180000", 10), 10000);
 const RISK_RANK = { safe: 0, low: 1, medium: 2, high: 3, critical: 4 };
 
 function normalizeHostname(rawUrl) {
@@ -34,9 +25,20 @@ function normalizeHostname(rawUrl) {
 }
 
 function countryCodeToFlagEmoji(code) {
-  if (!code || typeof code !== "string" || code.length !== 2) return "🌐";
+  if (!code || typeof code !== "string" || code.length !== 2) return "GL";
   const upper = code.toUpperCase();
   return String.fromCodePoint(...[...upper].map((c) => 127397 + c.charCodeAt(0)));
+}
+
+function countryCodeToName(code) {
+  if (!code || typeof code !== "string") return "Unknown";
+  const upper = code.toUpperCase();
+  try {
+    const display = new Intl.DisplayNames(["en"], { type: "region" });
+    return display.of(upper) || "Unknown";
+  } catch {
+    return "Unknown";
+  }
 }
 
 function isPrivateIpv4(ip) {
@@ -52,20 +54,23 @@ function isPrivateIpv4(ip) {
 function fallbackCountryFromHostname(hostname) {
   if (!hostname) return null;
   const tld = hostname.split(".").pop();
-  if (COUNTRY_META[tld]) {
+  if (tld && /^[a-z]{2}$/i.test(tld)) {
     const code = tld.toUpperCase();
-    return {
-      countryCode: code,
-      countryName: COUNTRY_META[tld].name,
-      countryFlag: countryCodeToFlagEmoji(code),
-      geoSource: "tld",
-      resolvedIP: null,
-    };
+    const countryName = countryCodeToName(code);
+    if (countryName && countryName !== "Unknown") {
+      return {
+        countryCode: code,
+        countryName,
+        countryFlag: countryCodeToFlagEmoji(code),
+        geoSource: "tld",
+        resolvedIP: null,
+      };
+    }
   }
   return {
     countryCode: "GL",
     countryName: "Global / Unknown",
-    countryFlag: "🌐",
+    countryFlag: "GL",
     geoSource: "unknown",
     resolvedIP: null,
   };
@@ -78,7 +83,6 @@ async function resolveCountryFromUrl(rawUrl) {
   let ip = hostname;
   if (!net.isIP(hostname)) {
     try {
-      // Prefer IPv4 for GeoIP providers to avoid NAT64/IPv6 resolution issues.
       const resolved = await dns.lookup(hostname, { family: 4 });
       ip = resolved.address;
     } catch {
@@ -95,15 +99,71 @@ async function resolveCountryFromUrl(rawUrl) {
     return null;
   }
 
+  if (GEOIPIFY_API_KEY) {
+    try {
+      const { data } = await axios.get("https://geo.ipify.org/api/v2/country", {
+        params: { apiKey: GEOIPIFY_API_KEY, ipAddress: ip },
+        timeout: 8000,
+      });
+      const code = data?.location?.country;
+      if (code) {
+        const upper = String(code).toUpperCase();
+        return {
+          countryCode: upper,
+          countryName: countryCodeToName(upper),
+          countryFlag: countryCodeToFlagEmoji(upper),
+          resolvedIP: data?.ip || ip,
+          geoSource: "geoip",
+        };
+      }
+    } catch {}
+  }
+
+  if (IPGEOLOCATION_API_KEY) {
+    try {
+      const { data } = await axios.get("https://api.ipgeolocation.io/ipgeo", {
+        params: { apiKey: IPGEOLOCATION_API_KEY, ip },
+        timeout: 8000,
+      });
+      if (data?.country_code2) {
+        const code = String(data.country_code2).toUpperCase();
+        return {
+          countryCode: code,
+          countryName: data.country_name || "Unknown",
+          countryFlag: countryCodeToFlagEmoji(code),
+          resolvedIP: data.ip || ip,
+          geoSource: "geoip",
+        };
+      }
+    } catch {}
+  }
+
+  if (IPINFO_TOKEN) {
+    try {
+      const { data } = await axios.get(`https://ipinfo.io/${encodeURIComponent(ip)}/json`, {
+        params: { token: IPINFO_TOKEN },
+        timeout: 8000,
+      });
+      if (data?.country) {
+        const code = String(data.country).toUpperCase();
+        return {
+          countryCode: code,
+          countryName: countryCodeToName(code),
+          countryFlag: countryCodeToFlagEmoji(code),
+          resolvedIP: data.ip || ip,
+          geoSource: "geoip",
+        };
+      }
+    } catch {}
+  }
+
   try {
-    const { data } = await axios.get(`https://ipwho.is/${encodeURIComponent(ip)}`, {
-      timeout: 8000,
-    });
+    const { data } = await axios.get(`https://ipwho.is/${encodeURIComponent(ip)}`, { timeout: 8000 });
     if (data && data.success !== false && data.country_code) {
       const code = String(data.country_code).toUpperCase();
       return {
         countryCode: code,
-        countryName: data.country || "Unknown",
+        countryName: countryCodeToName(code),
         countryFlag: countryCodeToFlagEmoji(code),
         resolvedIP: ip,
         geoSource: "geoip",
@@ -120,7 +180,7 @@ async function resolveCountryFromUrl(rawUrl) {
       const code = String(data.countryCode).toUpperCase();
       return {
         countryCode: code,
-        countryName: data.country || "Unknown",
+        countryName: countryCodeToName(code),
         countryFlag: countryCodeToFlagEmoji(code),
         resolvedIP: data.query || ip,
         geoSource: "geoip",
@@ -131,10 +191,13 @@ async function resolveCountryFromUrl(rawUrl) {
   return null;
 }
 
-// POST /api/url/scan — Deep scan
+// POST /api/url/scan — Always performs deep scan for thorough analysis
 router.post("/scan", async (req, res, next) => {
   try {
-    const { url, deep_scan = true } = req.body;
+    const { url } = req.body;
+    // Always use deep scan for thorough security analysis
+    const deep_scan = true;
+
     if (!url || !url.trim()) {
       return res.status(400).json({ error: "URL is required" });
     }
@@ -142,10 +205,10 @@ router.post("/scan", async (req, res, next) => {
     const cleanUrl = url.trim();
     const hostname = normalizeHostname(cleanUrl);
 
-    // Cache check (1 hour)
+    // Cache check (1 hour) - always check for deep scan results
     const cached = await UrlScan.findOne({
       url: cleanUrl,
-      scanType: deep_scan ? "deep" : "quick",
+      scanType: "deep",
       createdAt: { $gte: new Date(Date.now() - 3600000) },
     })
       .sort({ createdAt: -1 })
@@ -177,13 +240,13 @@ router.post("/scan", async (req, res, next) => {
       return res.json({ ...cachedReplay.toObject(), cached: true });
     }
 
-    const endpoint = deep_scan ? "/api/url/scan" : "/api/url/quick";
+    const endpoint = "/api/url/scan";
     const startTime = Date.now();
 
     const { data: result } = await axios.post(
       `${AI_URL}${endpoint}`,
       { url: cleanUrl, deep_scan },
-      { timeout: 30000 }
+      { timeout: AI_SCAN_TIMEOUT_MS }
     );
 
     const scanDuration = Date.now() - startTime;
@@ -194,7 +257,7 @@ router.post("/scan", async (req, res, next) => {
     const scan = await UrlScan.create({
       url: cleanUrl,
       urlHash: result.url_hash,
-      scanType: result.scan_type || (deep_scan ? "deep" : "quick"),
+      scanType: result.scan_type || "deep",
       safe: result.safe,
       riskScore: result.risk_score,
       riskLevel: result.risk_level,
@@ -237,9 +300,7 @@ router.post("/scan", async (req, res, next) => {
     });
   } catch (err) {
     if (err.code === "ECONNREFUSED") {
-      return res
-        .status(503)
-        .json({ error: "AI Engine offline. Start ai-engine first." });
+      return res.status(503).json({ error: "AI Engine offline. Start ai-engine first." });
     }
     next(err);
   }
@@ -256,10 +317,9 @@ router.post("/batch", async (req, res, next) => {
     const { data } = await axios.post(
       `${AI_URL}/api/url/batch`,
       { urls: urls.slice(0, 20), deep_scan },
-      { timeout: 60000 }
+      { timeout: AI_BATCH_TIMEOUT_MS }
     );
 
-    // Save all results
     for (const r of data.results) {
       const hostname = normalizeHostname(r.url);
       const resolvedCountry =
@@ -298,14 +358,7 @@ router.post("/batch", async (req, res, next) => {
 // GET /api/url/history
 router.get("/history", async (req, res, next) => {
   try {
-    const {
-      page = 1,
-      limit = 20,
-      riskLevel,
-      safe,
-      scanType,
-    } = req.query;
-
+    const { page = 1, limit = 20, riskLevel, safe, scanType } = req.query;
     const filter = {};
     if (riskLevel) filter.riskLevel = riskLevel;
     if (safe !== undefined) filter.safe = safe === "true";
@@ -316,20 +369,14 @@ router.get("/history", async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip((+page - 1) * +limit)
         .limit(+limit)
-        .select(
-          "url safe riskScore riskLevel scanType threats warnings " +
-          "malwareIndicators phishingIndicators scanDuration createdAt"
-        )
+        .select("url safe riskScore riskLevel scanType threats warnings malwareIndicators phishingIndicators scanDuration createdAt")
         .lean(),
       UrlScan.countDocuments(filter),
     ]);
 
     res.json({
       scans,
-      pagination: {
-        page: +page, limit: +limit, total,
-        pages: Math.ceil(total / +limit),
-      },
+      pagination: { page: +page, limit: +limit, total, pages: Math.ceil(total / +limit) },
     });
   } catch (err) {
     next(err);
@@ -343,31 +390,17 @@ router.get("/stats", async (req, res, next) => {
       UrlScan.countDocuments(),
       UrlScan.countDocuments({ safe: true }),
       UrlScan.countDocuments({ safe: false }),
-      UrlScan.aggregate([
-        { $group: { _id: "$riskLevel", count: { $sum: 1 } } },
-      ]),
-      UrlScan.aggregate([
-        { $group: { _id: "$scanType", count: { $sum: 1 } } },
-      ]),
-      UrlScan.find()
-        .sort({ createdAt: -1 })
-        .limit(5)
-        .select("url safe riskScore riskLevel scanType createdAt")
-        .lean(),
+      UrlScan.aggregate([{ $group: { _id: "$riskLevel", count: { $sum: 1 } } }]),
+      UrlScan.aggregate([{ $group: { _id: "$scanType", count: { $sum: 1 } } }]),
+      UrlScan.find().sort({ createdAt: -1 }).limit(5).select("url safe riskScore riskLevel scanType createdAt").lean(),
     ]);
 
     const riskDist = {};
     byRisk.forEach((r) => (riskDist[r._id] = r.count));
-
     const typeDist = {};
     byType.forEach((t) => (typeDist[t._id] = t.count));
 
-    res.json({
-      total, safe, unsafe,
-      riskDistribution: riskDist,
-      scanTypes: typeDist,
-      recentScans: recent,
-    });
+    res.json({ total, safe, unsafe, riskDistribution: riskDist, scanTypes: typeDist, recentScans: recent });
   } catch (err) {
     next(err);
   }
@@ -377,13 +410,16 @@ router.get("/stats", async (req, res, next) => {
 router.get("/analytics", async (req, res, next) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit || "1000", 10), 100), 5000);
+    const countryLimit = Math.max(parseInt(req.query.countryLimit || "0", 10), 0);
+
     const scans = await UrlScan.find()
       .sort({ createdAt: -1 })
       .limit(limit)
-      .select("url riskLevel createdAt countryCode countryName countryFlag geoSource")
+      .select("url riskLevel createdAt countryCode countryName countryFlag geoSource analysis.content.mentioned_countries")
       .lean();
 
     const countryCounts = {};
+    const marketCountryCounts = {};
     const linkCounts = {};
 
     scans.forEach((scan) => {
@@ -397,46 +433,52 @@ router.get("/analytics", async (req, res, next) => {
       const countryFlag = scan.countryFlag || fallback.countryFlag || "🌐";
 
       if (!countryCounts[key]) {
-        countryCounts[key] = {
-          code,
-          flag: countryFlag,
-          name: countryName,
-          count: 0,
-        };
+        countryCounts[key] = { code, flag: countryFlag, name: countryName, count: 0 };
       }
       countryCounts[key].count += 1;
 
       if (!linkCounts[hostname]) {
-        linkCounts[hostname] = {
-          url: hostname,
-          hits: 0,
-          risk: scan.riskLevel || "safe",
-        };
+        linkCounts[hostname] = { url: hostname, hits: 0, risk: scan.riskLevel || "safe" };
       }
       linkCounts[hostname].hits += 1;
 
       const current = RISK_RANK[linkCounts[hostname].risk] || 0;
       const incoming = RISK_RANK[scan.riskLevel] || 0;
       if (incoming > current) linkCounts[hostname].risk = scan.riskLevel;
+
+      const mentioned = scan?.analysis?.content?.mentioned_countries;
+      if (Array.isArray(mentioned)) {
+        mentioned.forEach((m) => {
+          const name = (m?.name || "").trim();
+          const count = Math.max(parseInt(m?.count || "0", 10), 0);
+          if (!name || !count) return;
+          if (!marketCountryCounts[name]) {
+            marketCountryCounts[name] = { name, count: 0 };
+          }
+          marketCountryCounts[name].count += count;
+        });
+      }
     });
 
     const total = Object.values(countryCounts).reduce((sum, c) => sum + c.count, 0) || 1;
-    const countries = Object.values(countryCounts)
+    const allCountries = Object.values(countryCounts)
       .sort((a, b) => b.count - a.count)
-      .slice(0, 10)
-      .map((c) => ({
-        ...c,
-        percent: Number(((c.count / total) * 100).toFixed(1)),
-      }));
+      .map((c) => ({ ...c, percent: Number(((c.count / total) * 100).toFixed(1)) }));
+    const countries = countryLimit > 0 ? allCountries.slice(0, countryLimit) : allCountries;
 
-    const topLinks = Object.values(linkCounts)
-      .sort((a, b) => b.hits - a.hits)
-      .slice(0, 12);
+    const totalMarketMentions = Object.values(marketCountryCounts).reduce((sum, c) => sum + c.count, 0) || 1;
+    const marketCountries = Object.values(marketCountryCounts)
+      .sort((a, b) => b.count - a.count)
+      .map((c) => ({ ...c, percent: Number(((c.count / totalMarketMentions) * 100).toFixed(1)) }));
+
+    const topLinks = Object.values(linkCounts).sort((a, b) => b.hits - a.hits).slice(0, 12);
 
     res.json({
       updatedAt: new Date().toISOString(),
       sampleSize: scans.length,
+      totalCountries: allCountries.length,
       countries,
+      marketCountries,
       topLinks,
     });
   } catch (err) {
@@ -477,25 +519,12 @@ router.post("/backfill-geo", async (req, res, next) => {
 
       await UrlScan.updateOne(
         { _id: scan._id },
-        {
-          $set: {
-            countryCode: resolved.countryCode,
-            countryName: resolved.countryName,
-            countryFlag: resolved.countryFlag,
-            resolvedIP: resolved.resolvedIP,
-            geoSource: resolved.geoSource,
-          },
-        }
+        { $set: { countryCode: resolved.countryCode, countryName: resolved.countryName, countryFlag: resolved.countryFlag, resolvedIP: resolved.resolvedIP, geoSource: resolved.geoSource } }
       );
       updated += 1;
     }
 
-    res.json({
-      scanned: scans.length,
-      updated,
-      skipped,
-      message: "Geo backfill completed",
-    });
+    res.json({ scanned: scans.length, updated, skipped, message: "Geo backfill completed" });
   } catch (err) {
     next(err);
   }

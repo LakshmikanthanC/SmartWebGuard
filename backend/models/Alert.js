@@ -5,6 +5,8 @@ const alertSchema = new mongoose.Schema(
     timestamp: { type: Date, default: Date.now, index: true },
     sourceIP: { type: String, required: true },
     destinationIP: { type: String, required: true },
+    sourceCountry: { type: String, default: "Unknown" },
+    destinationCountry: { type: String, default: "Unknown" },
     sourcePort: { type: Number, default: 0 },
     destinationPort: { type: Number, default: 0 },
     protocol: { type: String, enum: ["tcp", "udp", "icmp", "other"], default: "tcp" },
