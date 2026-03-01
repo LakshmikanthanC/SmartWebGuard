@@ -2,7 +2,7 @@ const DEFAULT_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const CHAT_TIMEOUT_MS = Math.max(
   1000,
-  Number(process.env.OPENAI_CHAT_TIMEOUT_MS || 10000)
+  Number(process.env.OPENAI_CHAT_TIMEOUT_MS || 60000)
 );
 
 const SYSTEM_PROMPT = [
@@ -96,54 +96,73 @@ async function streamReply(message, history = [], onDelta, signal) {
     throw new Error("provider_not_configured");
   }
 
-  const timeoutController = new AbortController();
-  const timer = setTimeout(() => timeoutController.abort(), CHAT_TIMEOUT_MS);
-  const linkedSignal = signal
-    ? AbortSignal.any([signal, timeoutController.signal])
-    : timeoutController.signal;
-
-  const response = await fetch(buildUrl(), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify(createRequestBody(message, history, true)),
-    signal: linkedSignal,
-  }).finally(() => clearTimeout(timer));
-
-  if (!response.ok || !response.body) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`provider_stream_failed_${response.status}:${text.slice(0, 200)}`);
+  // Don't link external signal - handle it separately to avoid issues
+  const controller = new AbortController();
+  let timer = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
+  
+  // If external signal is already aborted, throw immediately
+  if (signal?.aborted) {
+    clearTimeout(timer);
+    throw new Error("Request was cancelled");
   }
+  
+  // Listen for external abort
+  const abortHandler = () => controller.abort();
+  signal?.addEventListener("abort", abortHandler);
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let full = "";
+  try {
+    const response = await fetch(buildUrl(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify(createRequestBody(message, history, true)),
+      signal: controller.signal,
+    });
+    
+    // Clear timeout once we get a response - streaming has started
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+    if (!response.ok || !response.body) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`provider_stream_failed_${response.status}:${text.slice(0, 200)}`);
+    }
 
-    const events = buffer.split("\n\n");
-    buffer = events.pop() || "";
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let full = "";
 
-    for (const evt of events) {
-      const parsed = parseSseContent(evt);
-      if (!parsed) continue;
-      if (parsed.delta) {
-        full += parsed.delta;
-        if (onDelta) onDelta(parsed.delta);
-      }
-      if (parsed.done) {
-        return full.trim();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const events = buffer.split("\n\n");
+      buffer = events.pop() || "";
+
+      for (const evt of events) {
+        const parsed = parseSseContent(evt);
+        if (!parsed) continue;
+        if (parsed.delta) {
+          full += parsed.delta;
+          if (onDelta) onDelta(parsed.delta);
+        }
+        if (parsed.done) {
+          return full.trim();
+        }
       }
     }
-  }
 
-  return full.trim();
+    return full.trim();
+  } finally {
+    if (timer) clearTimeout(timer);
+    signal?.removeEventListener("abort", abortHandler);
+  }
 }
 
 module.exports = {

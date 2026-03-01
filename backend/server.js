@@ -263,7 +263,7 @@ const splitTextForStream = (text, targetChunkSize = 48) => {
   return chunks;
 };
 
-// Fast AI chat endpoint with context-aware local fallback
+// Fast AI chat endpoint - real LLM only, no local fallback
 app.post("/api/ai/chat", async (req, res) => {
   try {
     const message = String(req.body?.message || "").trim();
@@ -271,21 +271,32 @@ app.post("/api/ai/chat", async (req, res) => {
     if (!message) {
       return res.status(400).json({ error: "message is required" });
     }
-    if (chatProvider.hasProviderConfig()) {
-      try {
-        const reply = await chatProvider.getReply(message, history);
-        if (reply) {
-          return res.json({ reply, source: "provider", latency_ms: 0 });
-        }
-      } catch (providerErr) {
-        console.error("AI provider chat failed:", providerErr?.message || providerErr);
-      }
+    if (!chatProvider.hasProviderConfig()) {
+      return res.status(503).json({ 
+        error: "provider_not_configured", 
+        message: "AI provider not configured. Please set OPENAI_API_KEY in the backend .env file." 
+      });
     }
-
-    const fallbackReply = buildContextAwareReply(message, history);
-    return res.json({ reply: fallbackReply, source: "local-fallback", latency_ms: 0 });
+    try {
+      const reply = await chatProvider.getReply(message, history);
+      if (reply) {
+        return res.json({ reply, source: "provider", latency_ms: 0 });
+      }
+      return res.status(500).json({ 
+        error: "empty_response", 
+        message: "AI provider returned an empty response. Please try again." 
+      });
+    } catch (providerErr) {
+      console.error("AI provider chat failed:", providerErr?.message || providerErr);
+      const errMsg = String(providerErr?.message || providerErr || "");
+      return res.status(502).json({ 
+        error: "provider_request_failed", 
+        message: `AI provider error: ${errMsg}` 
+      });
+    }
   } catch (e) {
-    return res.status(500).json({ error: "chat_failed" });
+    console.error("Chat endpoint error:", e);
+    return res.status(500).json({ error: "chat_failed", message: e?.message || "Unknown error" });
   }
 });
 
@@ -297,7 +308,12 @@ app.post("/api/ai/chat/stream", async (req, res) => {
       return res.status(400).json({ error: "message is required" });
     }
 
-    const reply = buildContextAwareReply(message, history);
+    if (!chatProvider.hasProviderConfig()) {
+      return res.status(503).json({ 
+        error: "provider_not_configured", 
+        message: "AI provider not configured. Please set OPENAI_API_KEY in the backend .env file." 
+      });
+    }
 
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -306,46 +322,34 @@ app.post("/api/ai/chat/stream", async (req, res) => {
       res.flushHeaders();
     }
 
-    if (chatProvider.hasProviderConfig()) {
-      const controller = new AbortController();
-      req.on("close", () => {
-        try {
-          controller.abort();
-        } catch {}
-      });
-
-      try {
-        await chatProvider.streamReply(
-          message,
-          history,
-          (delta) => {
+    try {
+      await chatProvider.streamReply(
+        message,
+        history,
+        (delta) => {
+          try {
             res.write(`data: ${JSON.stringify({ type: "chunk", delta })}\n\n`);
-          },
-          controller.signal
-        );
+          } catch (writeErr) {
+            // Client disconnected, ignore write errors
+          }
+        },
+        null
+      );
+      try {
         res.write(`data: ${JSON.stringify({ type: "done", source: "provider" })}\n\n`);
-        return res.end();
-      } catch (providerErr) {
-        console.error("AI provider stream failed:", providerErr?.message || providerErr);
-      }
+      } catch {}
+      return res.end();
+    } catch (providerErr) {
+      console.error("AI provider stream failed:", providerErr?.message || providerErr);
+      const errMsg = String(providerErr?.message || providerErr || "");
+      // Send error as SSE event
+      res.write(`data: ${JSON.stringify({ type: "error", error: "provider_stream_failed", message: `AI provider error: ${errMsg}` })}\n\n`);
+      return res.end();
     }
-
-    const chunks = splitTextForStream(reply);
-    const fallbackDelayMs = Math.max(
-      0,
-      Number(process.env.CHAT_FALLBACK_CHUNK_DELAY_MS || 8)
-    );
-    for (const chunk of chunks) {
-      res.write(`data: ${JSON.stringify({ type: "chunk", delta: `${chunk} ` })}\n\n`);
-      if (fallbackDelayMs > 0) {
-        await new Promise((resolve) => setTimeout(resolve, fallbackDelayMs));
-      }
-    }
-    res.write(`data: ${JSON.stringify({ type: "done", source: "local-fallback" })}\n\n`);
-    return res.end();
   } catch (e) {
+    console.error("Chat stream endpoint error:", e);
     if (!res.headersSent) {
-      return res.status(500).json({ error: "chat_stream_failed" });
+      return res.status(500).json({ error: "chat_stream_failed", message: e?.message || "Unknown error" });
     }
     return res.end();
   }

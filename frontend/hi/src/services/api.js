@@ -3,9 +3,9 @@ import axios from "axios";
 // Use relative path to go through Vite proxy
 const API = import.meta.env.VITE_API_URL || "/api";
 const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 120000);
-const CHAT_TIMEOUT_MS = Number(import.meta.env.VITE_CHAT_TIMEOUT_MS || 5000);
+const CHAT_TIMEOUT_MS = Number(import.meta.env.VITE_CHAT_TIMEOUT_MS || 60000);
 const CHAT_STREAM_TIMEOUT_MS = Number(
-  import.meta.env.VITE_CHAT_STREAM_TIMEOUT_MS || 10000
+  import.meta.env.VITE_CHAT_STREAM_TIMEOUT_MS || 120000
 );
 const api = axios.create({ baseURL: API, timeout: API_TIMEOUT_MS });
 
@@ -49,8 +49,10 @@ export const askAssistantStream = async (
   history = [],
   { onChunk, signal, timeoutMs = CHAT_STREAM_TIMEOUT_MS } = {}
 ) => {
+  console.log("[API] askAssistantStream called, message:", message);
   const base = (API || "").replace(/\/$/, "");
   const url = `${base}/ai/chat/stream`;
+  console.log("[API] Fetching URL:", url);
   const timeoutController = new AbortController();
   const timer = setTimeout(
     () => timeoutController.abort(new Error("chat_stream_timeout")),
@@ -66,6 +68,8 @@ export const askAssistantStream = async (
     signal: linkedSignal,
   }).finally(() => clearTimeout(timer));
 
+  console.log("[API] Response status:", response.status, response.ok);
+
   if (!response.ok) {
     throw new Error(`chat_stream_failed_${response.status}`);
   }
@@ -73,6 +77,7 @@ export const askAssistantStream = async (
     throw new Error("chat_stream_unavailable");
   }
 
+  console.log("[API] Starting to read stream...");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -102,6 +107,9 @@ export const askAssistantStream = async (
       if (payload.type === "chunk" && payload.delta) {
         fullText += payload.delta;
         if (onChunk) onChunk(payload.delta, fullText);
+      }
+      if (payload.type === "error") {
+        throw new Error(payload.message || payload.error || "AI stream error");
       }
       if (payload.type === "done") {
         return fullText.trim();
