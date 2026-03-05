@@ -245,7 +245,6 @@ export default function PredictionPanel() {
   useEffect(() => {
     const initialSample = { ...SAMPLE_NORMAL };
     setFeatureValues(initialSample);
-    runPredict(initialSample);
   }, []);
 
   // Get all keys from the sample object for consistent ordering

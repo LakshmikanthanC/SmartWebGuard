@@ -42,15 +42,29 @@ class NIDSPredictor:
         if self.model is None:
             # Mock prediction when no model is available
             import random
-            types = MOCK_CLASS_NAMES
-            weights = MOCK_CLASS_WEIGHTS
-            class_name = random.choices(types, weights=weights)[0]
-            confidence = MOCK_CONFIDENCE_MIN + random.random() * max(0.0, MOCK_CONFIDENCE_MAX - MOCK_CONFIDENCE_MIN)
-            probabilities = {t: weights[i] for i, t in enumerate(types)}
+            default_types = ["normal", "dos", "probe", "r2l", "u2r"]
+            types = MOCK_CLASS_NAMES if MOCK_CLASS_NAMES else default_types
+            weights = MOCK_CLASS_WEIGHTS if (MOCK_CLASS_WEIGHTS and len(MOCK_CLASS_WEIGHTS) == len(types)) else None
+            class_name = random.choices(types, weights=weights, k=1)[0]
+
+            conf_min = float(MOCK_CONFIDENCE_MIN) if MOCK_CONFIDENCE_MIN is not None else 0.55
+            conf_max = float(MOCK_CONFIDENCE_MAX) if MOCK_CONFIDENCE_MAX is not None else 0.95
+            if conf_min <= 0 and conf_max <= 0:
+                conf_min, conf_max = 0.55, 0.95
+            if conf_max < conf_min:
+                conf_min, conf_max = conf_max, conf_min
+            confidence = conf_min + random.random() * max(0.0, conf_max - conf_min)
+
+            if weights:
+                weight_sum = sum(weights) or 1.0
+                probabilities = {t: float(weights[i]) / weight_sum for i, t in enumerate(types)}
+            else:
+                p = 1.0 / len(types)
+                probabilities = {t: p for t in types}
             return {
                 "prediction": class_name,
                 "confidence": confidence,
-                "severity": ATTACK_SEVERITY_MAP.get(class_name, "unknown"),
+                "severity": ATTACK_SEVERITY_MAP.get(class_name, "none" if class_name == "normal" else "medium"),
                 "probabilities": probabilities,
                 "is_malicious": class_name != "normal"
             }
@@ -76,7 +90,7 @@ class NIDSPredictor:
         return {
             "prediction": class_name,
             "confidence": float(np.max(proba)),
-            "severity": ATTACK_SEVERITY_MAP.get(class_name, "unknown"),
+            "severity": ATTACK_SEVERITY_MAP.get(class_name, "none" if class_name == "normal" else "medium"),
             "probabilities": {le.inverse_transform([i])[0]: float(p) for i, p in enumerate(proba)},
             "is_malicious": class_name != "normal"
         }

@@ -61,6 +61,22 @@ function normalizeHostname(rawUrl) {
   }
 }
 
+function isGoogleHostname(hostname) {
+  if (!hostname) return false;
+  return hostname === "google.com" || hostname.endsWith(".google.com");
+}
+
+function hasReputationThreat(result) {
+  const rep = result?.analysis?.reputation || {};
+  const vtMalicious = Number(rep?.virustotal?.malicious || 0);
+  const gsb = rep?.google_safe_browsing || {};
+  const gsbThreat =
+    Boolean(gsb?.matches) ||
+    Boolean(gsb?.threat_types?.length) ||
+    Boolean(gsb?.threats?.length);
+  return vtMalicious > 0 || gsbThreat;
+}
+
 function countryCodeToFlagEmoji(code) {
   if (!code || typeof code !== "string" || code.length !== 2) return "GL";
   const upper = code.toUpperCase();
@@ -312,6 +328,18 @@ router.post("/scan", async (req, res, next) => {
       } else {
         throw scanErr;
       }
+    }
+
+    if (isGoogleHostname(hostname) && !hasReputationThreat(result)) {
+      result.safe = true;
+      result.risk_score = Math.min(Number(result.risk_score || 0), 10);
+      result.risk_level = "safe";
+      result.threats = [];
+      result.warnings = [];
+      result.malware_indicators = [];
+      result.phishing_indicators = [];
+      if (!Array.isArray(result.info)) result.info = [];
+      result.info.push("Trusted domain override applied for Google domain.");
     }
 
     const scanDuration = Date.now() - startTime;

@@ -4,6 +4,8 @@ const bridge = require("../services/pythonBridge");
 const Alert = require("../models/Alert");
 const { emitAlert } = require("../services/socketService");
 const { randIP, randPort } = require("../utils/helpers");
+const ALLOWED_SEVERITIES = new Set(["none", "low", "medium", "high", "critical"]);
+const ALLOWED_PROTOCOLS = new Set(["tcp", "udp", "icmp", "other"]);
 
 const getCountry = (ip) => {
   try {
@@ -14,6 +16,18 @@ const getCountry = (ip) => {
   }
 };
 
+const normalizeSeverity = (severity, predictionLabel) => {
+  const value = String(severity || "").toLowerCase();
+  if (ALLOWED_SEVERITIES.has(value)) return value;
+  const predicted = String(predictionLabel || "").toLowerCase();
+  return predicted === "normal" ? "none" : "medium";
+};
+
+const normalizeProtocol = (protocol) => {
+  const value = String(protocol || "").toLowerCase();
+  return ALLOWED_PROTOCOLS.has(value) ? value : "other";
+};
+
 router.post("/", async (req, res, next) => {
   try {
     const features = req.body;
@@ -21,6 +35,10 @@ router.post("/", async (req, res, next) => {
       return res.status(400).json({ error: "No features provided" });
 
     const prediction = await bridge.predict(features);
+
+    const safeSeverity = normalizeSeverity(prediction.severity, prediction.prediction);
+    const safeProtocol = normalizeProtocol(features.protocol_type || "tcp");
+    prediction.severity = safeSeverity;
 
     if (prediction.is_malicious) {
       const sourceIP = features.source_ip || randIP();
@@ -35,9 +53,9 @@ router.post("/", async (req, res, next) => {
         destinationCountry,
         sourcePort: features.source_port || randPort(),
         destinationPort: features.dest_port || randPort(),
-        protocol: features.protocol_type || "tcp",
+        protocol: safeProtocol,
         attackType: prediction.prediction,
-        severity: prediction.severity,
+        severity: safeSeverity,
         confidence: prediction.confidence,
         probabilities: prediction.probabilities,
         rawFeatures: features,

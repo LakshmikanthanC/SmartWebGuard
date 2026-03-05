@@ -44,12 +44,18 @@ try:
         GOOGLE_SAFE_BROWSING_API_KEY,
         ABUSEIPDB_API_KEY,
     )
+    # Try to import SESSION_CONFIG if it exists
+    try:
+        from config import SESSION_CONFIG
+        _session_config = SESSION_CONFIG if SESSION_CONFIG else {}
+    except ImportError:
+        _session_config = {}
     # Use config values with fallbacks to empty lists if not available
     _suspicious_tlds = SUSPICIOUS_TLDS if SUSPICIOUS_TLDS else []
     _trusted_domains = TRUSTED_DOMAINS if TRUSTED_DOMAINS else []
     _phishing_keywords = PHISHING_KEYWORDS if PHISHING_KEYWORDS else []
     _brand_names = BRAND_NAMES if BRAND_NAMES else []
-    _standard_ports = STANDARD_PORTS if STANDARD_PORTS else [80, 443, 8080, 8443]
+    _standard_ports = STANDARD_PORTS if STANDARD_PORTS else []
     _phishing_urgency_keywords = PHISHING_URGENCY_KEYWORDS if PHISHING_URGENCY_KEYWORDS else []
     _private_ip_ranges = PRIVATE_IP_RANGES if PRIVATE_IP_RANGES else []
     _suspicious_patterns = SUSPICIOUS_PATTERNS if SUSPICIOUS_PATTERNS else []
@@ -57,6 +63,7 @@ try:
     _malicious_js_patterns = MALICIOUS_JS_PATTERNS if MALICIOUS_JS_PATTERNS else []
     _cryptominer_patterns = CRYPTOMINER_PATTERNS if CRYPTOMINER_PATTERNS else []
     _url_config = URL_ANALYZER_CONFIG if URL_ANALYZER_CONFIG else {}
+    _session_config = SESSION_CONFIG if SESSION_CONFIG else {}
     # API keys - will be used for external API calls
     _virustotal_key = VIRUSTOTAL_API_KEY if VIRUSTOTAL_API_KEY else ""
     _google_safe_browsing_key = GOOGLE_SAFE_BROWSING_API_KEY if GOOGLE_SAFE_BROWSING_API_KEY else ""
@@ -67,7 +74,7 @@ except ImportError:
     _trusted_domains = []
     _phishing_keywords = []
     _brand_names = []
-    _standard_ports = [80, 443, 8080, 8443]
+    _standard_ports = []
     _phishing_urgency_keywords = []
     _private_ip_ranges = []
     _suspicious_patterns = []
@@ -75,6 +82,7 @@ except ImportError:
     _malicious_js_patterns = []
     _cryptominer_patterns = []
     _url_config = {}
+    _session_config = {}
     # No API keys available
     _virustotal_key = ""
     _google_safe_browsing_key = ""
@@ -120,120 +128,31 @@ CAT_PRIVACY = "Privacy"
 CAT_REDIRECT = "Redirect"
 CAT_HEADERS = "Security Headers"
 
+DEFAULT_TRUSTED_DOMAINS = [
+    "google.com",
+    "github.com",
+    "microsoft.com",
+    "apple.com",
+    "cloudflare.com",
+]
+
 
 class URLAnalyzer:
     _country_mention_patterns_cache = None
 
     def __init__(self):
-        # Use configuration from config.py with fallbacks to hardcoded defaults
-        self.suspicious_tlds = _suspicious_tlds if _suspicious_tlds else [
-            ".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top",
-            ".club", ".work", ".date", ".racing", ".win", ".bid",
-            ".stream", ".download", ".loan", ".men", ".click",
-            ".link", ".party", ".review", ".science", ".zip", ".mov"
-        ]
+        # Use configuration values only. If config import fails, these are
+        # already initialized to empty lists in the module-level fallback.
+        self.suspicious_tlds = self._clean_list(_suspicious_tlds)
+        configured_trusted = self._clean_list(_trusted_domains)
+        self.trusted_domains = configured_trusted or list(DEFAULT_TRUSTED_DOMAINS)
+        self.phishing_keywords = self._clean_list(_phishing_keywords)
+        self.brand_names = self._clean_list(_brand_names)
+        self.suspicious_patterns = list(_suspicious_patterns)
+        self.malware_file_patterns = list(_malware_file_patterns)
+        self.malicious_js_patterns = list(_malicious_js_patterns)
+        self.cryptominer_patterns = list(_cryptominer_patterns)
 
-        self.trusted_domains = _trusted_domains if _trusted_domains else [
-            "google.com", "youtube.com", "facebook.com", "amazon.com",
-            "wikipedia.org", "twitter.com", "instagram.com", "linkedin.com",
-            "microsoft.com", "apple.com", "github.com", "stackoverflow.com",
-            "reddit.com", "netflix.com", "whatsapp.com", "zoom.us",
-            "dropbox.com", "salesforce.com", "adobe.com", "shopify.com",
-            "wordpress.com", "medium.com", "cloudflare.com", "npmjs.com",
-            "pypi.org", "docker.com", "elastic.co", "mongodb.com",
-            "yahoo.com", "bing.com", "twitch.tv", "spotify.com",
-            "paypal.com", "stripe.com", "slack.com", "notion.so",
-            "figma.com", "vercel.com", "netlify.com", "heroku.com",
-        ]
-
-        self.phishing_keywords = _phishing_keywords if _phishing_keywords else [
-            "login", "signin", "sign-in", "verify", "verification",
-            "account", "update", "secure", "banking", "confirm",
-            "password", "credential", "authenticate", "wallet",
-            "suspended", "unusual", "activity", "limited", "restore",
-            "unlock", "security", "alert", "notification", "urgent",
-            "expire", "compromised", "unauthorized", "validate",
-        ]
-
-        self.brand_names = _brand_names if _brand_names else [
-            "paypal", "amazon", "apple", "microsoft", "google",
-            "facebook", "netflix", "instagram", "whatsapp", "twitter",
-            "linkedin", "dropbox", "adobe", "chase", "wellsfargo",
-            "bankofamerica", "citibank", "hsbc", "barclays",
-        ]
-
-        self.suspicious_patterns = _suspicious_patterns if _suspicious_patterns else [
-            (r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', "IP address in URL"),
-            (r'[a-zA-Z0-9]{30,}', "Very long random string"),
-            (r'@', "@ symbol (URL obfuscation)"),
-            (r'\.exe|\.scr|\.bat|\.cmd|\.ps1', "Executable file extension"),
-            (r'\.zip|\.rar|\.7z', "Archive file extension"),
-            (r'data:', "Data URI scheme"),
-            (r'javascript:', "JavaScript URI scheme"),
-            (r'%[0-9a-fA-F]{2}.*%[0-9a-fA-F]{2}.*%[0-9a-fA-F]{2}',
-             "Heavy percent encoding"),
-            (r'-{3,}', "Multiple consecutive hyphens"),
-            (r'\.(php|asp|jsp)\?.*=.*&.*=', "Complex server-side query"),
-        ]
-
-        self.malware_file_patterns = _malware_file_patterns if _malware_file_patterns else [
-            (r'\.exe(\?|$|&)', "Windows executable (.exe)"),
-            (r'\.msi(\?|$|&)', "Windows installer (.msi)"),
-            (r'\.dll(\?|$|&)', "Dynamic library (.dll)"),
-            (r'\.scr(\?|$|&)', "Screensaver file (.scr) — often malware"),
-            (r'\.bat(\?|$|&)', "Batch file (.bat)"),
-            (r'\.cmd(\?|$|&)', "Command file (.cmd)"),
-            (r'\.ps1(\?|$|&)', "PowerShell script (.ps1)"),
-            (r'\.vbs(\?|$|&)', "VBScript file (.vbs)"),
-            (r'\.wsf(\?|$|&)', "Windows script (.wsf)"),
-            (r'\.apk(\?|$|&)', "Android package (.apk)"),
-            (r'\.dmg(\?|$|&)', "macOS disk image (.dmg)"),
-            (r'\.iso(\?|$|&)', "Disk image (.iso)"),
-            (r'download.*free', "Free download pattern"),
-            (r'free.*download', "Free download pattern"),
-            (r'crack.*software', "Software crack"),
-            (r'keygen', "Key generator"),
-            (r'warez', "Pirated software"),
-            (r'torrent', "Torrent reference"),
-        ]
-
-        self.malicious_js_patterns = _malicious_js_patterns if _malicious_js_patterns else [
-            (r'eval\s*\(\s*unescape', "eval(unescape()) — code execution via decoding"),
-            (r'eval\s*\(\s*atob', "eval(atob()) — base64 decoded execution"),
-            (r'eval\s*\(\s*String\.fromCharCode',
-             "eval(String.fromCharCode()) — char code execution"),
-            (r'document\.write\s*\(\s*unescape',
-             "document.write(unescape()) — DOM injection"),
-            (r'document\.cookie', "document.cookie access — cookie stealing"),
-            (r'\.createElement\s*\(\s*["\'](?:iframe|script)',
-             "Dynamic iframe/script creation"),
-            (r'XMLHttpRequest.*(?:password|credential|token|session)',
-             "XHR with sensitive data keywords"),
-            (r'new\s+ActiveXObject', "ActiveXObject — IE exploitation"),
-            (r'WScript\.Shell', "WScript.Shell — system command execution"),
-            (r'\.execScript', "execScript — legacy script execution"),
-            (r'fromCharCode.*fromCharCode.*fromCharCode',
-             "Chained fromCharCode — obfuscated payload"),
-            (r'(?:\\x[0-9a-fA-F]{2}){10,}',
-             "Hex-encoded string — hidden payload"),
-            (r'(?:\\u[0-9a-fA-F]{4}){10,}',
-             "Unicode-encoded string — hidden payload"),
-        ]
-
-        self.cryptominer_patterns = _cryptominer_patterns if _cryptominer_patterns else [
-            (r'coinhive', "CoinHive miner"),
-            (r'cryptonight', "CryptoNight algorithm"),
-            (r'coin-?hive', "CoinHive variant"),
-            (r'jsecoin', "JSEcoin miner"),
-            (r'cryptoloot', "CryptoLoot miner"),
-            (r'minero\.cc', "Minero miner"),
-            (r'webminepool', "WebMinePool"),
-            (r'coinimp', "CoinIMP miner"),
-            (r'crypto-?loot', "CryptoLoot variant"),
-            (r'authedmine', "AuthedMine"),
-            (r'CryptoNight', "CryptoNight implementation"),
-            (r'stratum\+tcp', "Mining pool stratum protocol"),
-        ]
 
         self.session = None
         if HAS_REQUESTS:
@@ -254,14 +173,65 @@ class URLAnalyzer:
         self.virustotal_key = _virustotal_key
         self.google_safe_browsing_key = _google_safe_browsing_key
         self.abuseipdb_key = _abuseipdb_key
-        self.fast_scan_mode = bool(_url_config.get("fast_scan_mode", True))
-        self.external_api_timeout = int(_url_config.get("external_api_timeout", 4))
-        self.deep_scan_timeout = int(_url_config.get("deep_scan_timeout", 4))
-        self.deep_scan_max_bytes = int(_url_config.get("deep_scan_max_bytes", 300_000))
-        self.subpage_crawl_limit = int(_url_config.get("subpage_crawl_limit", 2))
-        self.subpage_crawl_timeout = int(_url_config.get("subpage_crawl_timeout", 2))
-        self.subpage_crawl_max_bytes = int(_url_config.get("subpage_crawl_max_bytes", 120_000))
+        # Use config values with fallback defaults for critical settings
+        self.fast_scan_mode = bool(_url_config.get("fast_scan_mode", False))
+        self.external_api_timeout = int(_url_config.get("external_api_timeout")) if _url_config.get("external_api_timeout") else 4
+        self.deep_scan_timeout = int(_url_config.get("deep_scan_timeout")) if _url_config.get("deep_scan_timeout") else 4
+        self.deep_scan_max_bytes = int(_url_config.get("deep_scan_max_bytes")) if _url_config.get("deep_scan_max_bytes") else 300000
+        self.subpage_crawl_limit = int(_url_config.get("subpage_crawl_limit")) if _url_config.get("subpage_crawl_limit") else 2
+        self.subpage_crawl_timeout = int(_url_config.get("subpage_crawl_timeout")) if _url_config.get("subpage_crawl_timeout") else 2
+        self.subpage_crawl_max_bytes = int(_url_config.get("subpage_crawl_max_bytes")) if _url_config.get("subpage_crawl_max_bytes") else 120000
+        self.invalid_url_risk_points = self._cfg_int("invalid_url_risk_points", 95)
+        self.trusted_domain_bonus = self._cfg_int("trusted_domain_bonus", -20)
+        self.trusted_domain_safe_score_cap = self._cfg_int("trusted_domain_safe_score_cap", 12)
+        self.multiple_phishing_keywords_threshold = self._cfg_int("multiple_phishing_keywords_threshold", 3)
+        self.missing_security_headers_threshold = self._cfg_int("missing_security_headers_threshold", 4)
+        self.missing_security_headers_risk_points = self._cfg_int("missing_security_headers_risk_points", 8)
+        self.phishing_page_possible_threshold = self._cfg_int("phishing_page_possible_threshold", 3)
+        self.phishing_page_detected_threshold = self._cfg_int("phishing_page_detected_threshold", 5)
+        self.phishing_page_possible_risk_points = self._cfg_int("phishing_page_possible_risk_points", 12)
+        self.phishing_page_detected_risk_points = self._cfg_int("phishing_page_detected_risk_points", 25)
+        self.risk_level_critical_min = self._cfg_int("risk_level_critical_min", 70)
+        self.risk_level_high_min = self._cfg_int("risk_level_high_min", 50)
+        self.risk_level_medium_min = self._cfg_int("risk_level_medium_min", 30)
+        self.risk_level_low_min = self._cfg_int("risk_level_low_min", 15)
         self.country_mention_patterns = self._load_country_mention_patterns()
+
+    def _cfg_int(self, key, default):
+        value = _url_config.get(key)
+        if value is None or value == "":
+            return default
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _clean_list(self, values):
+        if not values:
+            return []
+        cleaned = []
+        for v in values:
+            if v is None:
+                continue
+            item = str(v).strip().lower()
+            if item:
+                cleaned.append(item)
+        return cleaned
+
+    def _trusted_domain_safe_override(self, result):
+        rep = (result.get("analysis") or {}).get("reputation") or {}
+        if not rep.get("trusted"):
+            return False
+
+        vt = rep.get("virustotal") or {}
+        if int(vt.get("malicious", 0) or 0) > 0:
+            return False
+
+        gsb = rep.get("google_safe_browsing") or {}
+        if bool(gsb.get("matches")) or bool(gsb.get("threat_types")) or bool(gsb.get("threats")):
+            return False
+
+        return True
 
     # ==========================================================
     # EXTERNAL API CALLS
@@ -583,7 +553,7 @@ class URLAnalyzer:
                     "The provided URL is malformed or invalid and cannot be parsed.",
                     evidence=url,
                     recommendation="Verify the URL is correctly formatted.",
-                    risk_points=95,
+                    risk_points=self.invalid_url_risk_points,
                 ))
                 self._finalize(result, start_time)
                 return result
@@ -875,7 +845,7 @@ class URLAnalyzer:
                 ))
 
         kw_found = [kw for kw in self.phishing_keywords if kw in path_query]
-        if len(kw_found) >= 3:
+        if len(kw_found) >= self.multiple_phishing_keywords_threshold:
             self._add_finding(result, ThreatFinding(
                 CAT_PHISHING, "Multiple Phishing Keywords", "medium",
                 f"The URL contains {len(kw_found)} keywords commonly "
@@ -1086,7 +1056,7 @@ class URLAnalyzer:
                     f"'{domain}' is recognized as a trusted, well-known "
                     "domain with established reputation.",
                     evidence=f"Matched trusted: {trusted}",
-                    risk_points=-20,
+                    risk_points=self.trusted_domain_bonus,
                 ))
                 result["analysis"]["reputation"]["trusted"] = True
                 result["analysis"]["reputation"]["category"] = "trusted"
@@ -1264,7 +1234,7 @@ class URLAnalyzer:
         h_info["security_headers_present"] = present
         h_info["security_headers_missing"] = missing
 
-        if len(missing) >= 4:
+        if len(missing) >= self.missing_security_headers_threshold:
             missing_names = ", ".join(missing[:4])
             self._add_finding(result, ThreatFinding(
                 CAT_HEADERS, "Missing Security Headers", "medium",
@@ -1274,7 +1244,7 @@ class URLAnalyzer:
                 "clickjacking, XSS, and MIME-type attacks.",
                 evidence=f"Missing: {', '.join(missing)}",
                 recommendation="Well-maintained sites implement security headers.",
-                risk_points=8,
+                risk_points=self.missing_security_headers_risk_points,
             ))
         elif len(present) >= 4:
             self._add_finding(result, ThreatFinding(
@@ -1851,7 +1821,7 @@ class URLAnalyzer:
         result["analysis"]["content"]["phishing_score"] = score
         result["analysis"]["content"]["phishing_page_indicators"] = indicators
 
-        if score >= 5:
+        if score >= self.phishing_page_detected_threshold:
             self._add_finding(result, ThreatFinding(
                 CAT_PHISHING, "Phishing Page Detected", "critical",
                 "Multiple strong phishing indicators found on this page: " +
@@ -1860,16 +1830,16 @@ class URLAnalyzer:
                 "by impersonating a trusted organization.",
                 evidence=f"Phishing score: {score}/10",
                 recommendation="Do NOT enter any information. Close immediately.",
-                risk_points=25,
+                risk_points=self.phishing_page_detected_risk_points,
             ))
-        elif score >= 3:
+        elif score >= self.phishing_page_possible_threshold:
             self._add_finding(result, ThreatFinding(
                 CAT_PHISHING, "Possible Phishing Page", "high",
                 "Several phishing indicators detected: " +
                 "; ".join(indicators) + ".",
                 evidence=f"Phishing score: {score}/10",
                 recommendation="Exercise caution. Do not enter credentials.",
-                risk_points=12,
+                risk_points=self.phishing_page_possible_risk_points,
             ))
 
     # ==========================================================
@@ -1960,18 +1930,24 @@ class URLAnalyzer:
 
     def _finalize(self, result, start_time):
         score = min(100, max(0, result["risk_score"]))
+
+        # Keep trusted domains (for example google.com) from being marked unsafe
+        # by heuristic-only signals when external reputation checks are clean.
+        if self._trusted_domain_safe_override(result):
+            score = min(score, self.trusted_domain_safe_score_cap)
+
         result["risk_score"] = score
 
-        if score >= 70:
+        if score >= self.risk_level_critical_min:
             result["risk_level"] = "critical"
             result["safe"] = False
-        elif score >= 50:
+        elif score >= self.risk_level_high_min:
             result["risk_level"] = "high"
             result["safe"] = False
-        elif score >= 30:
+        elif score >= self.risk_level_medium_min:
             result["risk_level"] = "medium"
             result["safe"] = False
-        elif score >= 15:
+        elif score >= self.risk_level_low_min:
             result["risk_level"] = "low"
             result["safe"] = True
         else:
