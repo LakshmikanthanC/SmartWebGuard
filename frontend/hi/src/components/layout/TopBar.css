@@ -17,7 +17,7 @@
 .clock-date { font-size: .7rem; color: var(--text-dim); }
 .clock-time { font-size: .85rem; font-family: var(--mono); font-weight: 600; color: var(--text-sec); }
 .topbar-divider { width: 1px; height: 28px; background: var(--border); }
-.topbar-indicators { display: flex; gap: 14px; }
+.topbar-indicators { display: flex; gap: 14px; align-items: center; }
 .indicator {
   display: flex;
   align-items: center;
@@ -26,3 +26,30 @@
   color: var(--text-sec);
   font-family: var(--mono);
 }
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-sec);
+}
+

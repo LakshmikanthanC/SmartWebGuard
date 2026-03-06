@@ -1,19 +1,36 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const Ctx = createContext(null);
-export const useSocket = () => useContext(Ctx);
+const defaultSocketContext = {
+  socket: null,
+  connected: false,
+  alerts: [],
+  feed: [],
+  liveStats: { total: 0, normal: 0, malicious: 0, perType: {} },
+  countryStats: {},
+  connectionError: null,
+  clearAlerts: () => {},
+  clearFeed: () => {},
+  resetStats: () => {},
+  clearCountryStats: () => {},
+};
+
+const Ctx = createContext(defaultSocketContext);
+export const useSocket = () => useContext(Ctx) || defaultSocketContext;
 
 export function SocketProvider({ children }) {
   const [connected, setConnected] = useState(false);
   const [alerts, setAlerts] = useState([]);
   const [feed, setFeed] = useState([]);
   const [liveStats, setLiveStats] = useState({ total: 0, normal: 0, malicious: 0, perType: {} });
+  const [countryStats, setCountryStats] = useState({});
   const [connectionError, setConnectionError] = useState(null);
   const ref = useRef(null);
 
   useEffect(() => {
-    const sock = io(import.meta.env.VITE_SOCKET_URL || "http://localhost:4000", {
+    // Direct connection to backend for WebSocket
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:4000";
+    const sock = io(socketUrl, {
       transports: ["websocket", "polling"], reconnection: true,
       reconnectionDelay: 1000, reconnectionAttempts: Infinity,
     });
@@ -49,6 +66,13 @@ export function SocketProvider({ children }) {
           [d.prediction]: (prev.perType[d.prediction] || 0) + 1,
         },
       }));
+      // Track country data in real-time
+      if (d.sourceCountry) {
+        setCountryStats((prev) => ({
+          ...prev,
+          [d.sourceCountry]: (prev[d.sourceCountry] || 0) + 1,
+        }));
+      }
     });
 
     return () => sock.disconnect();
@@ -57,9 +81,10 @@ export function SocketProvider({ children }) {
   const clearAlerts = useCallback(() => setAlerts([]), []);
   const clearFeed = useCallback(() => setFeed([]), []);
   const resetStats = useCallback(() => setLiveStats({ total: 0, normal: 0, malicious: 0, perType: {} }), []);
+  const clearCountryStats = useCallback(() => setCountryStats({}), []);
 
   return (
-    <Ctx.Provider value={{ socket: ref.current, connected, alerts, feed, liveStats, connectionError, clearAlerts, clearFeed, resetStats }}>
+    <Ctx.Provider value={{ socket: ref.current, connected, alerts, feed, liveStats, countryStats, connectionError, clearAlerts, clearFeed, resetStats, clearCountryStats }}>
       {children}
     </Ctx.Provider>
   );

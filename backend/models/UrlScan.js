@@ -23,6 +23,15 @@ const urlScanSchema = new mongoose.Schema(
     phishingIndicators: [{ type: String }],
     analysis: { type: mongoose.Schema.Types.Mixed },
     scanDuration: { type: Number },
+    countryCode: { type: String, index: true },
+    countryName: { type: String },
+    countryFlag: { type: String },
+    resolvedIP: { type: String },
+    geoSource: {
+      type: String,
+      enum: ["geoip", "tld", "unknown"],
+      default: "unknown",
+    },
   },
   { timestamps: true }
 );

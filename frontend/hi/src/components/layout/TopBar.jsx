@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useSocket } from "../../context/SocketContext";
 import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
 import { getHealth } from "../../services/api";
+import AiChatbot from "../AiChatbot/AiChatbot";
 import "./TopBar.css";
 
 const titles = {
@@ -13,8 +15,16 @@ const titles = {
 export default function TopBar({ currentPage }) {
   const { connected } = useSocket();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
   const [aiOnline, setAiOnline] = useState(false);
   const [time, setTime] = useState(new Date());
+  const [dashEnabled, setDashEnabled] = useState(() => {
+    try {
+      return localStorage.getItem("swg_has_url_scan") === "1";
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
@@ -33,6 +43,20 @@ export default function TopBar({ currentPage }) {
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    const onScanDone = () => setDashEnabled(true);
+    window.addEventListener("swg_url_scan_done", onScanDone);
+    return () => window.removeEventListener("swg_url_scan_done", onScanDone);
+  }, []);
+
+  const handleResetDashboard = () => {
+    try {
+      localStorage.removeItem("swg_has_url_scan");
+    } catch {}
+    setDashEnabled(false);
+    window.dispatchEvent(new Event("swg_url_scan_reset"));
+  };
+
   return (
     <header className="topbar">
       <div className="topbar-left">
@@ -45,6 +69,15 @@ export default function TopBar({ currentPage }) {
         </div>
         <div className="topbar-divider" />
         <div className="topbar-indicators">
+          {currentPage === "dashboard" && dashEnabled && (
+            <button
+              onClick={handleResetDashboard}
+              className="btn btn-ghost btn-sm"
+              title="Hide dashboard analytics until a URL scan completes"
+            >
+              Reset Dashboard
+            </button>
+          )}
           <button
             onClick={toggleTheme}
             className="theme-toggle"
@@ -52,6 +85,15 @@ export default function TopBar({ currentPage }) {
           >
             {isDarkMode ? '☀️' : '🌙'}
           </button>
+          <div className="user-menu">
+            <div className="user-avatar" title={user?.name || "User"}>
+              {user?.name?.charAt(0) || "U"}
+            </div>
+            <span className="user-name">{user?.name || "User"}</span>
+            <button onClick={logout} className="btn btn-ghost btn-sm" title="Logout">
+              🚪
+            </button>
+          </div>
           <div className="indicator" title="WebSocket Connection">
             <span className={`dot ${connected ? "dot-green" : "dot-red"}`} />
             <span>{connected ? "Connected" : "Offline"}</span>
@@ -60,6 +102,7 @@ export default function TopBar({ currentPage }) {
             <span className={`dot ${aiOnline ? "dot-green" : "dot-red"}`} />
             <span>AI {aiOnline ? "Online" : "Offline"}</span>
           </div>
+          <AiChatbot inline />
         </div>
       </div>
     </header>

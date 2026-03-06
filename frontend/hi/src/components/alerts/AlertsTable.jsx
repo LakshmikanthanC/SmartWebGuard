@@ -15,7 +15,7 @@ export default function AlertsTable() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const p = { page, limit: 15, ...filters };
+      const p = { page, limit: 100, ...filters };
       Object.keys(p).forEach((k) => !p[k] && delete p[k]);
       const { data } = await getAlerts(p);
       setAlerts(data.alerts);

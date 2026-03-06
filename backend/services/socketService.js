@@ -14,4 +14,5 @@ module.exports = {
   emitAlert(alert) { if (io) io.to("monitor").emit("new_alert", alert); },
   emitTraffic(data) { if (io) io.to("monitor").emit("traffic_update", data); },
   emitStats(data) { if (io) io.to("monitor").emit("stats_update", data); },
+  emitCountryStats(data) { if (io) io.to("monitor").emit("country_stats", data); },
 };
