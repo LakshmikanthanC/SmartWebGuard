@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   scanUrl,
   getUrlHistory,
   getUrlStats,
+  getUrlAnalytics,
   deleteUrlScan,
 } from "../services/api";
 import { fmtDate, sevColor, sevBg } from "../utils/formatters";
@@ -23,29 +24,32 @@ export default function UrlScanner() {
   const [historyPg, setHistoryPg] = useState({});
   const [activeTab, setActiveTab] = useState("scan");
   const [downloading, setDownloading] = useState(null);
+  const [checklistLive, setChecklistLive] = useState(true);
+  const [checklistUpdating, setChecklistUpdating] = useState(false);
+  const [checklistLastUpdated, setChecklistLastUpdated] = useState(null);
+  const [analyticsData, setAnalyticsData] = useState({
+    countries: [],
+    marketCountries: [],
+    topLinks: [],
+  });
+  const checklistUrlRef = useRef("");
 
   // ============================================================
-  // MOCK DATA (Analytics)
+  // LIVE ANALYTICS (from recent scans)
   // ============================================================
-  const analyticsData = {
-    countries: [
-      { code: "US", flag: "🇺🇸", name: "United States", count: 1250, percent: 45 },
-      { code: "IN", flag: "🇮🇳", name: "India", count: 620, percent: 22 },
-      { code: "GB", flag: "🇬🇧", name: "United Kingdom", count: 340, percent: 12 },
-      { code: "DE", flag: "🇩🇪", name: "Germany", count: 210, percent: 8 },
-      { code: "BR", flag: "🇧🇷", name: "Brazil", count: 150, percent: 5 },
-      { code: "JP", flag: "🇯🇵", name: "Japan", count: 110, percent: 4 },
-      { code: "FR", flag: "🇫🇷", name: "France", count: 90, percent: 3 },
-    ],
-    topLinks: [
-      { url: "google.com", hits: 1540 },
-      { url: "github.com", hits: 1200 },
-      { url: "suspicious-bank-login.tk", hits: 450, risk: "high" },
-      { url: "free-crypto-giveaway.xyz", hits: 320, risk: "critical" },
-      { url: "myshopify.com", hits: 210 },
-      { url: "paypal-secure-check.com", hits: 180, risk: "medium" },
-    ],
-  };
+  const loadAnalytics = useCallback(async () => {
+    try {
+      const { data } = await getUrlAnalytics({ limit: 2000 });
+      setAnalyticsData({
+        countries: data.countries || [],
+        marketCountries: data.marketCountries || [],
+        topLinks: data.topLinks || [],
+      });
+    } catch (e) {
+      console.error(e);
+      setAnalyticsData({ countries: [], marketCountries: [], topLinks: [] });
+    }
+  }, []);
 
   // ============================================================
   // DATA LOADERS
@@ -72,7 +76,16 @@ export default function UrlScanner() {
   useEffect(() => {
     loadHistory();
     loadStats();
-  }, [loadHistory, loadStats]);
+    loadAnalytics();
+
+    const iv = setInterval(() => {
+      loadStats();
+      if (activeTab === "analytics") loadAnalytics();
+      if (activeTab === "history") loadHistory();
+    }, 5000);
+
+    return () => clearInterval(iv);
+  }, [activeTab, loadHistory, loadStats, loadAnalytics]);
 
   // ============================================================
   // HANDLE SCAN
@@ -88,8 +101,14 @@ export default function UrlScanner() {
     try {
       const { data } = await scanUrl(url.trim(), deep);
       setResult(data);
+      setChecklistLastUpdated(new Date());
       loadHistory();
       loadStats();
+      loadAnalytics();
+      try {
+        localStorage.setItem("swg_has_url_scan", "1");
+        window.dispatchEvent(new Event("swg_url_scan_done"));
+      } catch {}
     } catch (e) {
       setError(e.response?.data?.error || e.message || "Scan failed");
     }
@@ -119,7 +138,7 @@ export default function UrlScanner() {
   // EVENT HANDLERS
   // ============================================================
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !loading) handleScan(true);
+    if (e.key === "Enter" && !loading) handleScan(false);
   };
 
   const handleDeleteScan = async (id) => {
@@ -127,6 +146,7 @@ export default function UrlScanner() {
       await deleteUrlScan(id);
       setHistory((h) => h.filter((s) => s._id !== id));
       loadStats();
+      loadAnalytics();
     } catch (e) {
       console.error(e);
     }
@@ -146,17 +166,132 @@ export default function UrlScanner() {
   // ============================================================
   // WEBSITE SAFETY CHECKLIST
   // ============================================================
-  const uiChecklist = [
-    "HTTPS enabled with a valid SSL certificate (secure padlock in browser)",
-    "Clear and professional design without suspicious pop-ups or redirects",
-    "Proper login security (strong password rules, OTP or multi-factor authentication)",
-    "Verified domain name (no spelling mistakes or fake look-alike URLs)",
-    "Visible privacy policy and contact information",
-    "No unexpected file downloads or malicious warnings from the browser",
-    "Forms that request only necessary information (no excessive personal data)",
-    "Security indicators aligned with best practices from OWASP",
-  ];
+  const toEvidenceText = (v) => {
+    if (v == null) return "";
+    if (typeof v === "string") return v;
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return String(v);
+    }
+  };
 
+  // Keep a stable latest URL for live checklist refresh logic.
+  useEffect(() => {
+    checklistUrlRef.current = (url || "").trim();
+  }, [url]);
+
+  // Live checklist updates: refresh scan data for the current URL while checklist tab is active.
+  useEffect(() => {
+    if (activeTab !== "checklist" || !checklistLive) return;
+    const currentUrl = checklistUrlRef.current;
+    if (!currentUrl || loading) return;
+
+    let cancelled = false;
+    const refreshChecklist = async () => {
+      try {
+        setChecklistUpdating(true);
+        const { data } = await scanUrl(currentUrl, true);
+        if (cancelled) return;
+        setResult(data);
+        setChecklistLastUpdated(new Date());
+        loadStats();
+        loadAnalytics();
+      } catch {
+        // Keep checklist visible with previous data if refresh fails.
+      } finally {
+        if (!cancelled) setChecklistUpdating(false);
+      }
+    };
+
+    refreshChecklist();
+    const iv = setInterval(refreshChecklist, 8000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+    };
+  }, [activeTab, checklistLive, loading, loadAnalytics, loadStats, url]);
+  const evidenceText = [
+    ...(result?.warnings || []),
+    ...(result?.findings || []),
+    ...(result?.threats || []),
+    ...(result?.phishingIndicators || []),
+    ...(result?.malwareIndicators || []),
+    result?.analysis || {},
+  ]
+    .map((x) => toEvidenceText(x))
+    .join(" ")
+    .toLowerCase();
+  const riskScore = Number(result?.riskScore || 0);
+  const hasScan = Boolean(result && typeof result.safe === "boolean");
+  const hasSpamSignal =
+    /spam|phish|credential|spoof/.test(evidenceText) ||
+    (Array.isArray(result?.phishingIndicators) && result.phishingIndicators.length > 0);
+  const hasPopupSignal = /popup|pop-up|redirect|overlay|modal/.test(evidenceText);
+  const hasAdsSignal = /adware|ads|advert|banner|redirect/.test(evidenceText);
+
+  const uiChecklist = [
+    {
+      item: "Spam messages",
+      status: hasScan ? (hasSpamSignal ? "Unsafe" : "Safe") : "Pending",
+      action: hasSpamSignal
+        ? "Detected spam/phishing signal. Do not click links and block sender/domain."
+        : "No spam signal detected in current scan.",
+    },
+    {
+      item: "Safe / Unsafe site signal",
+      status: hasScan
+        ? (result.safe && riskScore < 35 ? "Safe" : riskScore >= 60 ? "Unsafe" : "Check")
+        : "Pending",
+      action: hasScan
+        ? (result.safe && riskScore < 35
+          ? "Current scan indicates safe behavior. Continue with normal caution."
+          : riskScore >= 60
+            ? "Current scan indicates high risk. Avoid entering credentials/payment info."
+            : "Mixed signals detected. Verify domain, certificate, and page behavior.")
+        : "Run a scan to evaluate safe/unsafe status.",
+    },
+    {
+      item: "Pop-up requests",
+      status: hasScan ? (hasPopupSignal ? "Unsafe" : "Safe") : "Pending",
+      action: hasPopupSignal
+        ? "Suspicious pop-up/redirect pattern found. Close and do not interact."
+        : "No suspicious pop-up behavior detected.",
+    },
+    {
+      item: "More ads than content",
+      status: hasScan
+        ? (hasAdsSignal || riskScore >= 55 ? "Unsafe" : "Safe")
+        : "Pending",
+      action: hasAdsSignal
+        ? "Ad/redirect-heavy behavior detected. Leave site and run device scan."
+        : "No excessive ad-related signal detected.",
+    },
+    {
+      item: "Normal ads on trusted site",
+      status: hasScan
+        ? (result.safe && !hasAdsSignal && riskScore < 35 ? "Usually Safe" : "Unsafe")
+        : "Pending",
+      action: hasScan
+        ? (result.safe && !hasAdsSignal && riskScore < 35
+          ? "Ads appear normal. Still avoid unknown banners and fake download buttons."
+          : "Do not trust ads on this site due to risk signals.")
+        : "Scan first, then verify ad behavior.",
+    },
+  ];
+  const checklistStatusMark = (status) => {
+    const s = String(status || "").toLowerCase();
+    if (s.includes("unsafe")) return "✖";
+    if (s.includes("safe")) return "✔";
+    return "⚠";
+  };
+  const checklistStatusColor = (status) => {
+    const s = String(status || "").toLowerCase();
+    if (s.includes("unsafe")) return "var(--red)";
+    if (s.includes("safe")) return "var(--green)";
+    return "var(--orange)";
+  };
   // ============================================================
   // HELPERS
   // ============================================================
@@ -282,7 +417,7 @@ export default function UrlScanner() {
                 className="btn btn-ghost us-scan-btn"
                 onClick={() => handleScan(false)}
                 disabled={loading}
-                title="Quick scan — URL analysis only, no content fetch"
+                title="Quick scan - faster URL checks without deep page crawling"
               >
                 ⚡ Quick
               </button>
@@ -347,6 +482,16 @@ export default function UrlScanner() {
                       }}
                     >
                       {result.safe ? "SAFE" : "UNSAFE"}
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 6,
+                        fontSize: "0.82rem",
+                        fontWeight: 700,
+                        color: result.safe ? "var(--green)" : "var(--red)",
+                      }}
+                    >
+                      {result.safe ? "✔ Safety Check Passed" : "✖ Safety Check Failed"}
                     </div>
                     <div className="us-verdict-url">{result.url}</div>
                     <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
@@ -1028,6 +1173,22 @@ export default function UrlScanner() {
                                   </span>
                                 </div>
                               )}
+                              {Array.isArray(result.analysis.content.subpages) && (
+                                <div className="us-tech-row">
+                                  <span>Subpages Found</span>
+                                  <span className="us-tech-val">
+                                    {result.analysis.content.subpages.length}
+                                  </span>
+                                </div>
+                              )}
+                              {result.analysis.content.subpages_crawled !== undefined && (
+                                <div className="us-tech-row">
+                                  <span>Subpages Crawled</span>
+                                  <span className="us-tech-val">
+                                    {result.analysis.content.subpages_crawled}
+                                  </span>
+                                </div>
+                              )}
                             </>
                           )}
                           {result.analysis.content.has_redirect_param !==
@@ -1050,6 +1211,72 @@ export default function UrlScanner() {
                             </div>
                           )}
                         </div>
+                        {Array.isArray(result.analysis.content.subpages) &&
+                          result.analysis.content.subpages.length > 0 && (
+                            <div style={{ marginTop: 8 }}>
+                              <div
+                                style={{
+                                  fontSize: "0.72rem",
+                                  color: "var(--muted)",
+                                  marginBottom: 6,
+                                }}
+                              >
+                                Internal Subpages
+                              </div>
+                              <div style={{ maxHeight: 130, overflow: "auto" }}>
+                                {result.analysis.content.subpages
+                                  .slice(0, 15)
+                                  .map((sp) => (
+                                    <div key={sp} className="us-tech-row">
+                                      <span className="us-tech-val">{sp}</span>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+                        {Array.isArray(
+                          result.analysis.content.subpage_country_mentions
+                        ) &&
+                          result.analysis.content.subpage_country_mentions.length >
+                            0 && (
+                            <div style={{ marginTop: 10 }}>
+                              <div
+                                style={{
+                                  fontSize: "0.72rem",
+                                  color: "var(--muted)",
+                                  marginBottom: 6,
+                                }}
+                              >
+                                Subpage Country Mentions
+                              </div>
+                              <div style={{ maxHeight: 160, overflow: "auto" }}>
+                                {result.analysis.content.subpage_country_mentions
+                                  .slice(0, 10)
+                                  .map((item) => (
+                                    <div key={item.url} className="us-tech-row">
+                                      <span
+                                        className="us-tech-val"
+                                        style={{
+                                          maxWidth: "72%",
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                        title={item.url}
+                                      >
+                                        {item.url}
+                                      </span>
+                                      <span className="us-tech-val">
+                                        {(item.mentioned_countries || [])
+                                          .slice(0, 3)
+                                          .map((c) => c.name)
+                                          .join(", ") || "No country mentions"}
+                                      </span>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
                       </div>
                     )}
 
@@ -1379,56 +1606,97 @@ export default function UrlScanner() {
         <div className="us-an-grid anim-up">
           <div className="card">
             <div className="card-hdr">
-              <span className="card-title">🌍 Traffic Distribution by Country</span>
+              <span className="card-title">GeoIP Traffic Distribution by Country</span>
             </div>
-            <div className="us-an-list">
-              {analyticsData.countries.map((c) => (
-                <div key={c.code} className="us-an-row">
-                  <div className="us-an-label">
-                    <span className="us-an-flag">{c.flag}</span>
-                    <span className="us-an-name">{c.name}</span>
+            <p style={{ margin: "0 0 10px", color: "var(--muted)", fontSize: "0.8rem" }}>
+              Country is resolved from destination IP (GeoIP). Older scans may fall back to TLD.
+            </p>
+            <div className="us-an-list" style={{ maxHeight: 300, overflowY: "auto" }}>
+              {analyticsData.countries.length ? (
+                analyticsData.countries.map((c) => (
+                  <div key={c.code} className="us-an-row">
+                    <div className="us-an-label">
+                      <span className="us-an-flag">{c.flag}</span>
+                      <span className="us-an-name">{c.name}</span>
+                    </div>
+                    <div className="us-an-bar-track">
+                      <div
+                        className="us-an-bar-fill"
+                        style={{
+                          width: `${c.percent}%`,
+                          background: getBarColor(c.percent),
+                        }}
+                      />
+                    </div>
+                    <div className="us-an-val">{c.percent}%</div>
                   </div>
-                  <div className="us-an-bar-track">
-                    <div
-                      className="us-an-bar-fill"
-                      style={{
-                        width: `${c.percent}%`,
-                        background: getBarColor(c.percent),
-                      }}
-                    />
-                  </div>
-                  <div className="us-an-val">{c.percent}%</div>
+                ))
+              ) : (
+                <div className="empty">
+                  <p>No analytics data yet. Run a few URL scans.</p>
                 </div>
-              ))}
+              )}
             </div>
+            {analyticsData.marketCountries.length ? (
+              <>
+                <p style={{ margin: "14px 0 8px", color: "var(--muted)", fontSize: "0.8rem" }}>
+                  Countries mentioned in scanned page content (business/market text):
+                </p>
+                <div className="us-an-list" style={{ maxHeight: 200, overflowY: "auto" }}>
+                  {analyticsData.marketCountries.map((c) => (
+                    <div key={c.name} className="us-an-row">
+                      <div className="us-an-label">
+                        <span className="us-an-name">{c.name}</span>
+                      </div>
+                      <div className="us-an-bar-track">
+                        <div
+                          className="us-an-bar-fill"
+                          style={{
+                            width: `${c.percent}%`,
+                            background: getBarColor(c.percent),
+                          }}
+                        />
+                      </div>
+                      <div className="us-an-val">{c.percent}%</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : null}
           </div>
           <div className="card">
             <div className="card-hdr">
-              <span className="card-title">🔗 Most Frequently Accessed Links</span>
+              <span className="card-title">?? Most Frequently Accessed Links</span>
             </div>
             <div className="us-an-list">
-              {analyticsData.topLinks.map((l, i) => (
-                <div key={i} className="us-an-link-row">
-                  <div className="us-an-link-info">
-                    <div className="us-an-link-url">{l.url}</div>
-                    {l.risk && (
-                      <span
-                        className="badge"
-                        style={{
-                          background: sevBg(l.risk),
-                          color: sevColor(l.risk),
-                          fontSize: "0.65rem",
-                        }}
-                      >
-                        {l.risk.toUpperCase()}
-                      </span>
-                    )}
+              {analyticsData.topLinks.length ? (
+                analyticsData.topLinks.map((l, i) => (
+                  <div key={i} className="us-an-link-row">
+                    <div className="us-an-link-info">
+                      <div className="us-an-link-url">{l.url}</div>
+                      {l.risk && (
+                        <span
+                          className="badge"
+                          style={{
+                            background: sevBg(l.risk),
+                            color: sevColor(l.risk),
+                            fontSize: "0.65rem",
+                          }}
+                        >
+                          {l.risk.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="us-an-link-hits">
+                      {l.hits.toLocaleString()} hits
+                    </div>
                   </div>
-                  <div className="us-an-link-hits">
-                    {l.hits.toLocaleString()} hits
-                  </div>
+                ))
+              ) : (
+                <div className="empty">
+                  <p>No link activity yet.</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
@@ -1440,26 +1708,82 @@ export default function UrlScanner() {
       {activeTab === "checklist" && (
         <div className="card us-checklist-card">
           <div className="card-hdr">
-            <span className="card-title">🛡️ Website Safety Checklist</span>
+            <span className="card-title">Website Safety Checklist</span>
+            <span className="badge" style={{ background: "rgba(77,141,255,0.12)", color: "var(--blue)" }}>
+              {uiChecklist.length} Checks
+            </span>
+            <span
+              className="badge"
+              style={{
+                background: hasScan
+                  ? (result.safe ? "rgba(0,230,122,0.14)" : "rgba(255,71,87,0.14)")
+                  : "rgba(255,184,0,0.14)",
+                color: hasScan ? (result.safe ? "var(--green)" : "var(--red)") : "var(--orange)",
+              }}
+            >
+              {hasScan ? (result.safe ? "Dynamic: Safe" : "Dynamic: Unsafe") : "Pending Scan"}
+            </span>
+            <button
+              className="btn btn-ghost"
+              type="button"
+              onClick={() => setChecklistLive((v) => !v)}
+              style={{ marginLeft: "auto", minWidth: 110 }}
+            >
+              {checklistLive ? "Live: ON" : "Live: OFF"}
+            </button>
           </div>
+          <p className="us-checklist-intro" style={{ marginBottom: 6 }}>
+            Current website: <strong>{result?.url || url?.trim() || "No URL selected"}</strong>
+          </p>
+          {hasScan && (
+            <p className="us-checklist-intro" style={{ marginBottom: 6 }}>
+              Latest risk score: <strong>{result.riskScore}/100</strong> | Risk level: <strong>{String(result.riskLevel || "").toUpperCase()}</strong>
+            </p>
+          )}
+          <p className="us-checklist-intro" style={{ marginBottom: 6 }}>
+            Status:{" "}
+            <strong>
+              {checklistUpdating ? "Updating..." : checklistLive ? "Live monitoring active" : "Live monitoring paused"}
+            </strong>
+            {" | "}
+            Last updated:{" "}
+            <strong>{checklistLastUpdated ? checklistLastUpdated.toLocaleTimeString() : "Not yet"}</strong>
+          </p>
           <p className="us-checklist-intro">
-            Use this UI-level checklist to quickly gauge whether a site feels
-            trustworthy before sharing credentials or payment data.
+            Use this UI-level checklist to quickly gauge whether a site feels trustworthy before sharing credentials or payment data.
           </p>
           <div className="us-checklist-list">
-            {uiChecklist.map((item, idx) => (
-              <div key={idx} className="us-checklist-item">
-                <span className="us-checklist-icon">✅</span>
-                <span>{item}</span>
-              </div>
-            ))}
+            <table className="us-checklist-table" key={result?.timestamp || result?.url || "no-scan"} style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid var(--line)" }}>Type</th>
+                  <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid var(--line)" }}>Safe / Unsafe</th>
+                  <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid var(--line)" }}>Recommended Action</th>
+                  <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid var(--line)" }}>Mark</th>
+                </tr>
+              </thead>
+              <tbody>
+                {uiChecklist.map((row, idx) => (
+                  <tr key={idx}>
+                    <td style={{ padding: "10px", borderBottom: "1px solid var(--line)" }}>{row.item}</td>
+                    <td style={{ padding: "10px", borderBottom: "1px solid var(--line)" }}>
+                      <span style={{ color: checklistStatusColor(row.status), fontWeight: 700 }}>{row.status}</span>
+                    </td>
+                    <td style={{ padding: "10px", borderBottom: "1px solid var(--line)" }}>{row.action}</td>
+                    <td style={{ padding: "10px", borderBottom: "1px solid var(--line)", fontWeight: 700 }}>{checklistStatusMark(row.status)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           <p className="us-checklist-note">
-            This checklist helps users quickly evaluate whether a website interface
-            appears trustworthy and safe to use.
+            This checklist helps users quickly evaluate whether a website interface appears trustworthy and safe to use.
           </p>
         </div>
       )}
     </div>
   );
 }
+
+
+

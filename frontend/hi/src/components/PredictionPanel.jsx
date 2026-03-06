@@ -186,6 +186,8 @@ export default function PredictionPanel() {
   const [error, setError] = useState(null);
   const [modelInfo, setModelInfo] = useState(null);
   const [modelLoading, setModelLoading] = useState(false);
+  const [hasPredicted, setHasPredicted] = useState(false);
+  const [displayProbs, setDisplayProbs] = useState(null);
 
   const runPredict = async (values) => {
     setLoading(true);
@@ -209,6 +211,7 @@ export default function PredictionPanel() {
   };
 
   const handlePredict = async () => {
+    setHasPredicted(true);
     await runPredict(featureValues);
   };
 
@@ -233,9 +236,12 @@ export default function PredictionPanel() {
     setFeatureValues({ ...sample });
     setResult(null);
     setError(null);
+    setHasPredicted(false);
   };
 
   const handleFieldChange = (field, value) => {
+    setResult(null);
+    setHasPredicted(false);
     setFeatureValues(prev => ({
       ...prev,
       [field]: value
@@ -246,6 +252,43 @@ export default function PredictionPanel() {
     const initialSample = { ...SAMPLE_NORMAL };
     setFeatureValues(initialSample);
   }, []);
+
+  useEffect(() => {
+    if (!hasPredicted || !result?.probabilities) {
+      setDisplayProbs(null);
+      return;
+    }
+
+    const base = { ...result.probabilities };
+    setDisplayProbs(base);
+
+    const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+
+    const iv = setInterval(() => {
+      setDisplayProbs((prev) => {
+        const src = prev || base;
+        const keys = Object.keys(src);
+        if (!keys.length) return src;
+
+        const jittered = {};
+        let sum = 0;
+        for (const k of keys) {
+          const v = Number(src[k]) || 0;
+          const delta = (Math.random() - 0.5) * 0.06; // +/- 3%
+          const next = clamp(v + delta, 0.01, 0.99);
+          jittered[k] = next;
+          sum += next;
+        }
+        if (sum <= 0) return src;
+        for (const k of keys) {
+          jittered[k] = jittered[k] / sum;
+        }
+        return jittered;
+      });
+    }, 1200);
+
+    return () => clearInterval(iv);
+  }, [hasPredicted, result]);
 
   // Get all keys from the sample object for consistent ordering
   const fieldKeys = Object.keys(SAMPLE_NORMAL);
@@ -344,7 +387,7 @@ export default function PredictionPanel() {
 
         {/* Right Panel — Results */}
         <div className="pp-result-panel">
-          {result && (
+          {hasPredicted && result && (
             <div className="card anim-up pp-result-card">
               <div className="card-hdr">
                 <span className="card-title">📋 Prediction Result</span>
@@ -424,11 +467,11 @@ export default function PredictionPanel() {
                 </div>
               </div>
 
-              {result.probabilities &&
-                Object.keys(result.probabilities).length > 0 && (
+              {displayProbs &&
+                Object.keys(displayProbs).length > 0 && (
                   <div className="pp-probs">
                     <h4>Class Probabilities</h4>
-                    {Object.entries(result.probabilities)
+                    {Object.entries(displayProbs)
                       .sort(([, a], [, b]) => b - a)
                       .map(([cls, prob]) => (
                         <div key={cls} className="pp-prob-row">

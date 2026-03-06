@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-const ThemeContext = createContext();
+const defaultThemeContext = {
+  isDarkMode: false,
+  toggleTheme: () => {},
+};
+const ThemeContext = createContext(defaultThemeContext);
 
 export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
+  return useContext(ThemeContext) || defaultThemeContext;
 };
 
 export const ThemeProvider = ({ children }) => {

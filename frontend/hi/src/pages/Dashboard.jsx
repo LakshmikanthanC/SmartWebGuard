@@ -1,31 +1,26 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
-import TrafficChart from "../components/charts/TrafficChart";
-import LiveMap from "../components/maps/LiveMap";
+import api from "../services/api";
+import TrafficChart from "../components/dashboard/TrafficChart";
 import Recommendations from "../components/Recommendations";
 import WebsiteChecklist from "../components/WebsiteChecklist";
-import { useSocket } from "../hooks/useSocket";
 
 export default function Dashboard() {
   const [alerts, setAlerts] = useState([]);
-  const liveAlert = useSocket(); // newest alert from WebSocket
 
   // Load history once on mount
   useEffect(() => {
     api.get("/alerts").then(r => setAlerts(r.data)).catch(console.error);
   }, []);
 
-  // Update list when new alert arrives
-  useEffect(() => {
-    if (liveAlert) setAlerts(prev => [liveAlert, ...prev].slice(0, 200));
-  }, [liveAlert]);
-
   // Prepare chart data (last 30 alerts, reverse order)
   const chartData = alerts
     .slice(0, 30)
     .map(a => ({
       time: new Date(a.timestamp).toLocaleTimeString(),
-      severity: a.severity
+      dos: a.severity === "dos" ? 1 : 0,
+      probe: a.severity === "probe" ? 1 : 0,
+      r2l: a.severity === "r2l" ? 1 : 0,
+      u2r: a.severity === "u2r" ? 1 : 0
     }))
     .reverse();
 
@@ -33,8 +28,7 @@ export default function Dashboard() {
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Live Dashboard</h1>
 
-      <TrafficChart data={chartData} />
-      <LiveMap points={alerts.slice(0, 50)} />
+      <TrafficChart timeline={chartData} />
 
       {alerts[0] && (
         <div className="border rounded p-4 bg-gray-50">

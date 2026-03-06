@@ -3,12 +3,12 @@ import { useSocket } from "../../context/SocketContext";
 import "./Sidebar.css";
 
 const nav = [
-  { id: "dashboard", icon: "📊", label: "Dashboard" },
+  { id: "urlscanner", icon: "🔗", label: "URL6 Scanner" },
   { id: "alerts", icon: "🚨", label: "Alerts" },
   { id: "analytics", icon: "📈", label: "Analytics" },
+  { id: "dashboard", icon: "📊", label: "Dashboard" },
   { id: "prediction", icon: "🤖", label: "Prediction" },
-  { id: "settings", icon: "⚙️", label: "Settings" },
-  { id: "urlscanner", icon: "🔗", label: "URL Scanner" },
+  { id: "settings", icon: "⚙️", label: "Settings" },  
 ];
 
 export default function Sidebar({ active, onChange }) {

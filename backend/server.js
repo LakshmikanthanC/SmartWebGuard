@@ -62,14 +62,6 @@ const SIM_MIN_MALICIOUS_RATE = Math.min(
   1,
   Math.max(0, Number(process.env.SIM_MIN_MALICIOUS_RATE || 0.18))
 );
-const ALLOWED_SEVERITIES = new Set(["none", "low", "medium", "high", "critical"]);
-
-const normalizeSeverity = (severity, predictionLabel) => {
-  const value = String(severity || "").toLowerCase();
-  if (ALLOWED_SEVERITIES.has(value)) return value;
-  const predicted = String(predictionLabel || "").toLowerCase();
-  return predicted === "normal" ? "none" : "medium";
-};
 
 const getCountryFromIP = (ip) => {
   try {
@@ -203,6 +195,7 @@ const buildContextAwareReply = (message, history = []) => {
   const hasCode = /```|const |let |function |class |import |return |=>/.test(text);
   const asksDebug = /bug|error|fix|issue|not working|fails|crash|exception|trace/.test(lower);
   const asksExplain = /what is|explain|difference|compare|why/.test(lower);
+  const extractedTopic = extractTopicFromPrompt(text);
   const asksSecurity = /phish|malware|ransomware|mfa|2fa|password|vpn|security|cyber|owasp/.test(lower);
   const asksReact = /react|jsx|vite|useeffect|state|props|hook/.test(lower);
   const asksGeneralCode = /code|coding|api|function|class|python|javascript|node|sql|java|c\+\+/.test(lower);
@@ -428,7 +421,6 @@ const startSim = () => {
           is_malicious: true,
         };
       }
-      pred.severity = normalizeSeverity(pred.severity, pred.prediction);
       socketService.emitTraffic({
         timestamp: new Date().toISOString(), 
         sourceIP: feat.source_ip, 

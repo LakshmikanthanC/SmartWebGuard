@@ -44,18 +44,12 @@ try:
         GOOGLE_SAFE_BROWSING_API_KEY,
         ABUSEIPDB_API_KEY,
     )
-    # Try to import SESSION_CONFIG if it exists
-    try:
-        from config import SESSION_CONFIG
-        _session_config = SESSION_CONFIG if SESSION_CONFIG else {}
-    except ImportError:
-        _session_config = {}
     # Use config values with fallbacks to empty lists if not available
     _suspicious_tlds = SUSPICIOUS_TLDS if SUSPICIOUS_TLDS else []
     _trusted_domains = TRUSTED_DOMAINS if TRUSTED_DOMAINS else []
     _phishing_keywords = PHISHING_KEYWORDS if PHISHING_KEYWORDS else []
     _brand_names = BRAND_NAMES if BRAND_NAMES else []
-    _standard_ports = STANDARD_PORTS if STANDARD_PORTS else []
+    _standard_ports = STANDARD_PORTS if STANDARD_PORTS else [80, 443, 8080, 8443]
     _phishing_urgency_keywords = PHISHING_URGENCY_KEYWORDS if PHISHING_URGENCY_KEYWORDS else []
     _private_ip_ranges = PRIVATE_IP_RANGES if PRIVATE_IP_RANGES else []
     _suspicious_patterns = SUSPICIOUS_PATTERNS if SUSPICIOUS_PATTERNS else []
@@ -63,7 +57,6 @@ try:
     _malicious_js_patterns = MALICIOUS_JS_PATTERNS if MALICIOUS_JS_PATTERNS else []
     _cryptominer_patterns = CRYPTOMINER_PATTERNS if CRYPTOMINER_PATTERNS else []
     _url_config = URL_ANALYZER_CONFIG if URL_ANALYZER_CONFIG else {}
-    _session_config = SESSION_CONFIG if SESSION_CONFIG else {}
     # API keys - will be used for external API calls
     _virustotal_key = VIRUSTOTAL_API_KEY if VIRUSTOTAL_API_KEY else ""
     _google_safe_browsing_key = GOOGLE_SAFE_BROWSING_API_KEY if GOOGLE_SAFE_BROWSING_API_KEY else ""
@@ -74,7 +67,7 @@ except ImportError:
     _trusted_domains = []
     _phishing_keywords = []
     _brand_names = []
-    _standard_ports = []
+    _standard_ports = [80, 443, 8080, 8443]
     _phishing_urgency_keywords = []
     _private_ip_ranges = []
     _suspicious_patterns = []
@@ -82,7 +75,6 @@ except ImportError:
     _malicious_js_patterns = []
     _cryptominer_patterns = []
     _url_config = {}
-    _session_config = {}
     # No API keys available
     _virustotal_key = ""
     _google_safe_browsing_key = ""
@@ -128,31 +120,20 @@ CAT_PRIVACY = "Privacy"
 CAT_REDIRECT = "Redirect"
 CAT_HEADERS = "Security Headers"
 
-DEFAULT_TRUSTED_DOMAINS = [
-    "google.com",
-    "github.com",
-    "microsoft.com",
-    "apple.com",
-    "cloudflare.com",
-]
-
 
 class URLAnalyzer:
     _country_mention_patterns_cache = None
 
     def __init__(self):
-        # Use configuration values only. If config import fails, these are
-        # already initialized to empty lists in the module-level fallback.
-        self.suspicious_tlds = self._clean_list(_suspicious_tlds)
-        configured_trusted = self._clean_list(_trusted_domains)
-        self.trusted_domains = configured_trusted or list(DEFAULT_TRUSTED_DOMAINS)
-        self.phishing_keywords = self._clean_list(_phishing_keywords)
-        self.brand_names = self._clean_list(_brand_names)
+        # Use configuration from config.py only (no hardcoded fallbacks here)
+        self.suspicious_tlds = list(_suspicious_tlds)
+        self.trusted_domains = list(_trusted_domains)
+        self.phishing_keywords = list(_phishing_keywords)
+        self.brand_names = list(_brand_names)
         self.suspicious_patterns = list(_suspicious_patterns)
         self.malware_file_patterns = list(_malware_file_patterns)
         self.malicious_js_patterns = list(_malicious_js_patterns)
         self.cryptominer_patterns = list(_cryptominer_patterns)
-
 
         self.session = None
         if HAS_REQUESTS:
@@ -173,65 +154,14 @@ class URLAnalyzer:
         self.virustotal_key = _virustotal_key
         self.google_safe_browsing_key = _google_safe_browsing_key
         self.abuseipdb_key = _abuseipdb_key
-        # Use config values with fallback defaults for critical settings
-        self.fast_scan_mode = bool(_url_config.get("fast_scan_mode", False))
-        self.external_api_timeout = int(_url_config.get("external_api_timeout")) if _url_config.get("external_api_timeout") else 4
-        self.deep_scan_timeout = int(_url_config.get("deep_scan_timeout")) if _url_config.get("deep_scan_timeout") else 4
-        self.deep_scan_max_bytes = int(_url_config.get("deep_scan_max_bytes")) if _url_config.get("deep_scan_max_bytes") else 300000
-        self.subpage_crawl_limit = int(_url_config.get("subpage_crawl_limit")) if _url_config.get("subpage_crawl_limit") else 2
-        self.subpage_crawl_timeout = int(_url_config.get("subpage_crawl_timeout")) if _url_config.get("subpage_crawl_timeout") else 2
-        self.subpage_crawl_max_bytes = int(_url_config.get("subpage_crawl_max_bytes")) if _url_config.get("subpage_crawl_max_bytes") else 120000
-        self.invalid_url_risk_points = self._cfg_int("invalid_url_risk_points", 95)
-        self.trusted_domain_bonus = self._cfg_int("trusted_domain_bonus", -20)
-        self.trusted_domain_safe_score_cap = self._cfg_int("trusted_domain_safe_score_cap", 12)
-        self.multiple_phishing_keywords_threshold = self._cfg_int("multiple_phishing_keywords_threshold", 3)
-        self.missing_security_headers_threshold = self._cfg_int("missing_security_headers_threshold", 4)
-        self.missing_security_headers_risk_points = self._cfg_int("missing_security_headers_risk_points", 8)
-        self.phishing_page_possible_threshold = self._cfg_int("phishing_page_possible_threshold", 3)
-        self.phishing_page_detected_threshold = self._cfg_int("phishing_page_detected_threshold", 5)
-        self.phishing_page_possible_risk_points = self._cfg_int("phishing_page_possible_risk_points", 12)
-        self.phishing_page_detected_risk_points = self._cfg_int("phishing_page_detected_risk_points", 25)
-        self.risk_level_critical_min = self._cfg_int("risk_level_critical_min", 70)
-        self.risk_level_high_min = self._cfg_int("risk_level_high_min", 50)
-        self.risk_level_medium_min = self._cfg_int("risk_level_medium_min", 30)
-        self.risk_level_low_min = self._cfg_int("risk_level_low_min", 15)
+        self.fast_scan_mode = bool(_url_config.get("fast_scan_mode", True))
+        self.external_api_timeout = int(_url_config.get("external_api_timeout", 4))
+        self.deep_scan_timeout = int(_url_config.get("deep_scan_timeout", 4))
+        self.deep_scan_max_bytes = int(_url_config.get("deep_scan_max_bytes", 300_000))
+        self.subpage_crawl_limit = int(_url_config.get("subpage_crawl_limit", 2))
+        self.subpage_crawl_timeout = int(_url_config.get("subpage_crawl_timeout", 2))
+        self.subpage_crawl_max_bytes = int(_url_config.get("subpage_crawl_max_bytes", 120_000))
         self.country_mention_patterns = self._load_country_mention_patterns()
-
-    def _cfg_int(self, key, default):
-        value = _url_config.get(key)
-        if value is None or value == "":
-            return default
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return default
-
-    def _clean_list(self, values):
-        if not values:
-            return []
-        cleaned = []
-        for v in values:
-            if v is None:
-                continue
-            item = str(v).strip().lower()
-            if item:
-                cleaned.append(item)
-        return cleaned
-
-    def _trusted_domain_safe_override(self, result):
-        rep = (result.get("analysis") or {}).get("reputation") or {}
-        if not rep.get("trusted"):
-            return False
-
-        vt = rep.get("virustotal") or {}
-        if int(vt.get("malicious", 0) or 0) > 0:
-            return False
-
-        gsb = rep.get("google_safe_browsing") or {}
-        if bool(gsb.get("matches")) or bool(gsb.get("threat_types")) or bool(gsb.get("threats")):
-            return False
-
-        return True
 
     # ==========================================================
     # EXTERNAL API CALLS
@@ -553,7 +483,7 @@ class URLAnalyzer:
                     "The provided URL is malformed or invalid and cannot be parsed.",
                     evidence=url,
                     recommendation="Verify the URL is correctly formatted.",
-                    risk_points=self.invalid_url_risk_points,
+                    risk_points=95,
                 ))
                 self._finalize(result, start_time)
                 return result
@@ -845,7 +775,7 @@ class URLAnalyzer:
                 ))
 
         kw_found = [kw for kw in self.phishing_keywords if kw in path_query]
-        if len(kw_found) >= self.multiple_phishing_keywords_threshold:
+        if len(kw_found) >= 3:
             self._add_finding(result, ThreatFinding(
                 CAT_PHISHING, "Multiple Phishing Keywords", "medium",
                 f"The URL contains {len(kw_found)} keywords commonly "
@@ -1056,7 +986,7 @@ class URLAnalyzer:
                     f"'{domain}' is recognized as a trusted, well-known "
                     "domain with established reputation.",
                     evidence=f"Matched trusted: {trusted}",
-                    risk_points=self.trusted_domain_bonus,
+                    risk_points=-20,
                 ))
                 result["analysis"]["reputation"]["trusted"] = True
                 result["analysis"]["reputation"]["category"] = "trusted"
@@ -1234,7 +1164,7 @@ class URLAnalyzer:
         h_info["security_headers_present"] = present
         h_info["security_headers_missing"] = missing
 
-        if len(missing) >= self.missing_security_headers_threshold:
+        if len(missing) >= 4:
             missing_names = ", ".join(missing[:4])
             self._add_finding(result, ThreatFinding(
                 CAT_HEADERS, "Missing Security Headers", "medium",
@@ -1244,7 +1174,7 @@ class URLAnalyzer:
                 "clickjacking, XSS, and MIME-type attacks.",
                 evidence=f"Missing: {', '.join(missing)}",
                 recommendation="Well-maintained sites implement security headers.",
-                risk_points=self.missing_security_headers_risk_points,
+                risk_points=8,
             ))
         elif len(present) >= 4:
             self._add_finding(result, ThreatFinding(
@@ -1821,7 +1751,7 @@ class URLAnalyzer:
         result["analysis"]["content"]["phishing_score"] = score
         result["analysis"]["content"]["phishing_page_indicators"] = indicators
 
-        if score >= self.phishing_page_detected_threshold:
+        if score >= 5:
             self._add_finding(result, ThreatFinding(
                 CAT_PHISHING, "Phishing Page Detected", "critical",
                 "Multiple strong phishing indicators found on this page: " +
@@ -1830,16 +1760,16 @@ class URLAnalyzer:
                 "by impersonating a trusted organization.",
                 evidence=f"Phishing score: {score}/10",
                 recommendation="Do NOT enter any information. Close immediately.",
-                risk_points=self.phishing_page_detected_risk_points,
+                risk_points=25,
             ))
-        elif score >= self.phishing_page_possible_threshold:
+        elif score >= 3:
             self._add_finding(result, ThreatFinding(
                 CAT_PHISHING, "Possible Phishing Page", "high",
                 "Several phishing indicators detected: " +
                 "; ".join(indicators) + ".",
                 evidence=f"Phishing score: {score}/10",
                 recommendation="Exercise caution. Do not enter credentials.",
-                risk_points=self.phishing_page_possible_risk_points,
+                risk_points=12,
             ))
 
     # ==========================================================
@@ -1930,24 +1860,18 @@ class URLAnalyzer:
 
     def _finalize(self, result, start_time):
         score = min(100, max(0, result["risk_score"]))
-
-        # Keep trusted domains (for example google.com) from being marked unsafe
-        # by heuristic-only signals when external reputation checks are clean.
-        if self._trusted_domain_safe_override(result):
-            score = min(score, self.trusted_domain_safe_score_cap)
-
         result["risk_score"] = score
 
-        if score >= self.risk_level_critical_min:
+        if score >= 70:
             result["risk_level"] = "critical"
             result["safe"] = False
-        elif score >= self.risk_level_high_min:
+        elif score >= 50:
             result["risk_level"] = "high"
             result["safe"] = False
-        elif score >= self.risk_level_medium_min:
+        elif score >= 30:
             result["risk_level"] = "medium"
             result["safe"] = False
-        elif score >= self.risk_level_low_min:
+        elif score >= 15:
             result["risk_level"] = "low"
             result["safe"] = True
         else:
