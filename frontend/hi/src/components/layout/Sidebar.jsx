@@ -13,6 +13,7 @@ const nav = [
 
 export default function Sidebar({ active, onChange }) {
   const { connected, liveStats } = useSocket();
+  
 
   return (
     <aside className="sidebar">

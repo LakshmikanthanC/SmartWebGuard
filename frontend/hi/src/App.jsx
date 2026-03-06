@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import "./App.css";
 
 import { SocketProvider } from "./context/SocketContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { getDashboard, getTimeline, getTopSources } from "./services/api";
 
+import Login from "./pages/Login";
 import AlertsTable from "./components/alerts/AlertsTable";
 import ModelMetrics from "./components/analytics/ModelMetrics";
 import ProtocolBreakdown from "./components/analytics/ProtocolBreakdown";
@@ -24,8 +27,29 @@ import UrlScanner from "./components/UrlScanner";
 import Sidebar from "./components/layout/Sidebar";
 import TopBar from "./components/layout/TopBar";
 
+// Protected Route Component
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+}
+
 function MainApp() {
-  const [page, setPage] = useState("dashboard");
+  const [page, setPage] = useState("urlscanner");
   const [stats, setStats] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [topSrc, setTopSrc] = useState([]);
@@ -181,10 +205,24 @@ function MainApp() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <SocketProvider>
-        <MainApp />
-      </SocketProvider>
-    </ThemeProvider>
+    <BrowserRouter>
+      <ThemeProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <MainApp />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </SocketProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </BrowserRouter>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSocket } from "../../context/SocketContext";
 import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
 import { getHealth } from "../../services/api";
 import AiChatbot from "../AiChatbot/AiChatbot";
 import "./TopBar.css";
@@ -14,6 +15,7 @@ const titles = {
 export default function TopBar({ currentPage }) {
   const { connected } = useSocket();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
   const [aiOnline, setAiOnline] = useState(false);
   const [time, setTime] = useState(new Date());
   const [dashEnabled, setDashEnabled] = useState(() => {
@@ -83,6 +85,15 @@ export default function TopBar({ currentPage }) {
           >
             {isDarkMode ? '☀️' : '🌙'}
           </button>
+          <div className="user-menu">
+            <div className="user-avatar" title={user?.name || "User"}>
+              {user?.name?.charAt(0) || "U"}
+            </div>
+            <span className="user-name">{user?.name || "User"}</span>
+            <button onClick={logout} className="btn btn-ghost btn-sm" title="Logout">
+              🚪
+            </button>
+          </div>
           <div className="indicator" title="WebSocket Connection">
             <span className={`dot ${connected ? "dot-green" : "dot-red"}`} />
             <span>{connected ? "Connected" : "Offline"}</span>
