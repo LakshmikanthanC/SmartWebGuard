@@ -3,7 +3,7 @@ import { useSocket } from "../../context/SocketContext";
 import "./Sidebar.css";
 
 const nav = [
-  { id: "urlscanner", icon: "🔗", label: "URL6 Scanner" },
+  { id: "urlscanner", icon: "🔗", label: "URL Scanner" },
   { id: "alerts", icon: "🚨", label: "Alerts" },
   { id: "analytics", icon: "📈", label: "Analytics" },
   { id: "dashboard", icon: "📊", label: "Dashboard" },
