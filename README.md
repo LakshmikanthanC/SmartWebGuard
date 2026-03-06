@@ -1,4 +1,4 @@
-﻿SmartWebGuard
+## ﻿SmartWebGuard
 
 SmartWebGuard is a comprehensive cybersecurity platform designed to detect and analyze network threats, including URL-based malware, phishing attempts, and network intrusion detection. The system combines machine learning models with real-time monitoring to provide actionable insights for network security.
 
@@ -223,4 +223,5 @@ For support and questions:
 
 ---# SmartWebGuard2
 # SmartWebGuard2
+
 
