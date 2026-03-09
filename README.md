@@ -220,8 +220,3 @@ For support and questions:
 
 **Version**: 2.0.0
 **Last Updated**: 2026
-
----# SmartWebGuard2
-# SmartWebGuard2
-
-
